@@ -187,6 +187,8 @@ th { font: 500 0.78rem/1.2 var(--mono); text-transform: uppercase; letter-spacin
 .tips { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.75rem 2rem; }
 .tips div { display: grid; gap: 0.35rem; align-content: start; }
 .tips p { color: var(--muted); }
+.status-tip { grid-column: 1 / -1; }
+.dot { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; background: var(--c); margin: 0 0.3em 0 0.15em; vertical-align: 0.02em; }
 
 .install { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 2rem; }
 .install ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.5rem; }
@@ -379,6 +381,7 @@ dialog.lightbox::backdrop { background: rgba(8, 12, 20, 0.92); backdrop-filter: 
       <h2 id="tips-titel">Handig om te weten</h2>
     </div>
     <div class="tips">
+      <div class="status-tip"><h3>De stip rechtsboven</h3><p>Die laat zien of de app de server bereikt. <span class="dot" style="--c: var(--ok)"></span>Groen: alles werkt. <span class="dot" style="--c: #f9a825"></span>Geel: de server gaf een onverwacht antwoord, kijk in de lijst of je scan is opgeslagen. <span class="dot" style="--c: var(--err)"></span>Rood: geen verbinding, controleer wifi of mobiele data. <span class="dot" style="--c: #9e9e9e"></span>Grijs: je bent nog niet ingelogd. Tik op de stip voor details, zoals de laatste keer contact en de laatste fout. De app controleert de verbinding elke halve minuut vanzelf.</p></div>
       <div><h3>Donkere zaal</h3><p>Met het bliksemsymbool rechtsboven in het camerabeeld zet je de zaklamp aan.</p></div>
       <div><h3>Eén keer scannen is genoeg</h3><p>Dezelfde pas wordt een paar seconden genegeerd, en na elke melding wacht de scanner even. Een pas die blijft liggen telt dus niet dubbel.</p></div>
       <div><h3>Scherm blijft aan</h3><p>Zolang de camera open is gaat het scherm niet uit. Zet de camera uit met het camera-icoon als je alleen wilt typen.</p></div>
