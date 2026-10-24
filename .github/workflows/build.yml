@@ -6,11 +6,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # for creating releases on v* tags
+  contents: write # releases on v* tags, screenshot commits
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.docs.outputs.changed }}
     steps:
       - uses: actions/checkout@v5
 
@@ -84,6 +86,7 @@ jobs:
       # website in docs/ and commits them when they changed. Pushes made
       # with the workflow token do not trigger a new run.
       - name: Update screenshots in docs/
+        id: screenshots
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           ./gradlew --no-daemon recordRoborazziDebug
@@ -96,8 +99,55 @@ jobs:
             git commit -m "Update screenshots"
             git pull --rebase origin main
             git push origin HEAD:main
+            echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Publish the site only when docs/ changed: in the pushed commits or
+      # through new screenshots. A manual run always publishes.
+      - name: Did docs/ change?
+        id: docs
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          BEFORE: ${{ github.event.before }}
+          SCREENSHOTS: ${{ steps.screenshots.outputs.committed }}
+        run: |
+          changed=false
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$SCREENSHOTS" = true ]; then
+            changed=true
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
+            changed=true
+          elif git fetch --quiet --depth=1 origin "$BEFORE" && [ -n "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- docs)" ]; then
+            changed=true
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "docs/ changed: $changed"
 
       - name: Clean up keystore
         if: always()
         run: rm -f "$RUNNER_TEMP/release.jks"
+
+  # GitHub Pages, source "GitHub Actions": one deployment per change,
+  # after the screenshots are committed
+  pages:
+    needs: build
+    if: needs.build.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main # includes the screenshot commit of this run
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -154,6 +154,7 @@ class ScreenshotTest {
                 tab = Tab.VERKOOP,
                 state = ScreenState(
                     entries = verkoopRows,
+                    aantallen = aantallen,
                     loaded = true,
                     result = Message("Success", "Barcode 213874 stored in database", false),
                 ),
@@ -177,6 +178,7 @@ class ScreenshotTest {
                 tab = Tab.VERKOOP,
                 state = ScreenState(
                     entries = verkoopRows.map { it.copy(introducee = false) },
+                    aantallen = Aantallen(verkocht = Counts("128", "128", "0"), binnen = Counts("0", "0", "0")),
                     loaded = true,
                     result = Message("Success", "Barcode 213874 stored in database", false),
                 ),

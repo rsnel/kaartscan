@@ -361,11 +361,16 @@ internal fun ScanContent(
             if (tab == Tab.CONTROLE) {
                 state.aantallen?.let { BinnenRow(it, introduceeToegestaan) }
             } else {
-                Text(
-                    "De barcode moet een leerlingnummer zijn van minstens 6 cijfers.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                val a = state.aantallen
+                if (a != null) {
+                    CountsRow("Verkocht", a.verkocht, introduceeToegestaan)
+                } else {
+                    Text(
+                        "De barcode moet een leerlingnummer zijn van minstens 6 cijfers.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             state.loadError?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)

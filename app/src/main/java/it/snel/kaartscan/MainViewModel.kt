@@ -208,7 +208,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             Tab.OVERZICHT -> client.kaartjes(alphabetic, showDeleted)
         }
         // an api.php without counts in its lists: ask for them separately
-        val aantallen = listing.aantallen ?: if (tab == Tab.VERKOOP) null else client.aantallen()
+        val aantallen = listing.aantallen ?: client.aantallen()
         return Loaded(user, listing.entries, aantallen)
     }
 

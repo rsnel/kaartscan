@@ -40,7 +40,8 @@ checkbox *met introducee* is only shown when `whoami` reports
 
 User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/kaartscan/),
 from `docs/`. The screenshots there are rendered by `ScreenshotTest` with example data
-and committed by CI on every push to `main`.
+and committed by CI on every push to `main`; the `pages` job then publishes `docs/`
+(Pages source "GitHub Actions"), only when it changed.
 
 ## Building
 
