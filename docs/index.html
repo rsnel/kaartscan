@@ -195,6 +195,39 @@ th { font: 500 0.78rem/1.2 var(--mono); text-transform: uppercase; letter-spacin
 footer { border-top: 1px solid var(--line); padding-block: 2rem 3rem; color: var(--muted); font-size: 0.95rem; }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; justify-content: space-between; }
 
+/* lightbox for the screenshots, desktop only (see script) */
+.zoomable .phone img { cursor: zoom-in; }
+dialog.lightbox {
+  border: 0; padding: 0; margin: auto;
+  background: transparent;
+  max-width: 100vw; max-height: 100vh;
+  overflow: visible;
+}
+dialog.lightbox::backdrop { background: rgba(8, 12, 20, 0.92); backdrop-filter: blur(4px); }
+.lightbox figure { margin: 0; display: grid; gap: 0.75rem; justify-items: center; }
+.lightbox img {
+  height: min(88vh, 2400px);
+  width: auto;
+  max-width: 92vw;
+  border-radius: 28px;
+  border: 10px solid #0d1117;
+  background: #0d1117;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  cursor: zoom-out;
+}
+.lightbox figcaption { color: #e6ebf3; font-size: 1rem; text-align: center; }
+.lightbox-btn {
+  position: fixed; top: 50%; transform: translateY(-50%);
+  width: 3rem; height: 3rem; border-radius: 50%;
+  border: 0; background: rgba(255, 255, 255, 0.14); color: #fff;
+  font: 400 1.6rem/1 var(--body); cursor: pointer;
+}
+.lightbox-btn:hover { background: rgba(255, 255, 255, 0.26); }
+.lightbox-btn:focus-visible { outline: 3px solid #aac7ff; outline-offset: 2px; }
+.lightbox-prev { left: 1.5rem; }
+.lightbox-next { right: 1.5rem; }
+.lightbox-close { top: 1.5rem; right: 1.5rem; transform: none; }
+
 @media (max-width: 760px) {
   .ticket { grid-template-columns: 1fr; }
   .ticket-stub { border-left: 0; border-top: 3px dashed color-mix(in srgb, var(--accent-ink) 35%, transparent); padding-top: 2rem; }
@@ -381,5 +414,73 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; justify-conten
     <span>Schermafbeeldingen met voorbeeldgegevens, het camerabeeld is een illustratie.</span>
   </div>
 </footer>
+<dialog class="lightbox" id="lightbox" aria-label="Schermafbeelding">
+  <figure>
+    <img id="lightbox-img" alt="">
+    <figcaption id="lightbox-caption"></figcaption>
+  </figure>
+  <button class="lightbox-btn lightbox-prev" id="lightbox-prev" type="button" aria-label="Vorige">&#8249;</button>
+  <button class="lightbox-btn lightbox-next" id="lightbox-next" type="button" aria-label="Volgende">&#8250;</button>
+  <button class="lightbox-btn lightbox-close" id="lightbox-close" type="button" aria-label="Sluiten">&#215;</button>
+</dialog>
+<script>
+// Click a screenshot to see it large. Only with a mouse on a wide screen:
+// on a phone the screenshots are already about as big as they can get.
+(function () {
+  var desktop = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 761px)');
+  var dialog = document.getElementById('lightbox');
+  if (!dialog || typeof dialog.showModal !== 'function') return;
+  var img = document.getElementById('lightbox-img');
+  var caption = document.getElementById('lightbox-caption');
+  var shots = Array.prototype.slice.call(document.querySelectorAll('.phone img'));
+  // browse the screenshots in page order, each once; the hero only repeats
+  // the controle screenshot, a click on it opens that one
+  var seen = {};
+  var unique = shots.filter(function (s) {
+    var key = s.getAttribute('src');
+    if (s.closest('.ticket') || seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+  var current = 0;
+
+  function captionFor(el) {
+    var fig = el.closest('figure');
+    var fc = fig && fig.querySelector('figcaption');
+    return fc ? fc.textContent : el.alt;
+  }
+  function show(i) {
+    current = (i + unique.length) % unique.length;
+    var el = unique[current];
+    img.src = el.currentSrc || el.src;
+    img.alt = el.alt;
+    caption.textContent = captionFor(el) + '  ·  ' + (current + 1) + ' / ' + unique.length;
+  }
+  function update() {
+    document.body.classList.toggle('zoomable', desktop.matches);
+  }
+  update();
+  if (desktop.addEventListener) desktop.addEventListener('change', update);
+
+  shots.forEach(function (el) {
+    el.addEventListener('click', function () {
+      if (!desktop.matches) return;
+      var i = unique.findIndex(function (u) { return u.getAttribute('src') === el.getAttribute('src'); });
+      show(i < 0 ? 0 : i);
+      dialog.showModal();
+    });
+  });
+  document.getElementById('lightbox-prev').addEventListener('click', function () { show(current - 1); });
+  document.getElementById('lightbox-next').addEventListener('click', function () { show(current + 1); });
+  document.getElementById('lightbox-close').addEventListener('click', function () { dialog.close(); });
+  img.addEventListener('click', function () { dialog.close(); });
+  // a click on the backdrop lands on the dialog element itself
+  dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') { show(current - 1); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { show(current + 1); e.preventDefault(); }
+  });
+})();
+</script>
 </body>
 </html>
