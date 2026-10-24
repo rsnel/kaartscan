@@ -160,6 +160,29 @@ class ScreenshotTest {
     }
 
     @Test
+    fun verkoopZonderIntroducee() = shot("3b-verkoop-zonder-introducee") {
+        MainScaffold(Tab.VERKOOP, me.copy(feestNaam = "Kerstgala 2026", introduceeToegestaan = false), onBack = {}, onRefresh = {}) {
+            ScanContent(
+                tab = Tab.VERKOOP,
+                state = ScreenState(
+                    entries = verkoopRows.map { it.copy(introducee = false) },
+                    loaded = true,
+                    result = Message("Success", "Barcode 213874 stored in database", false),
+                ),
+                introducee = false,
+                introduceeToegestaan = false,
+                onIntroduceeChange = {},
+                manual = "",
+                onManualChange = {},
+                onSubmit = {},
+                cameraOn = true,
+                onToggleCamera = {},
+                onDelete = {},
+            ) { CameraIllustration() }
+        }
+    }
+
+    @Test
     fun controle() = shot("4-controle") {
         MainScaffold(Tab.CONTROLE, me, onBack = {}, onRefresh = {}) {
             ScanContent(
