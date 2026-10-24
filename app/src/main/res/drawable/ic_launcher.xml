@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- launcher icon for API < 26; API 26+ uses drawable-anydpi-v26/ic_launcher.xml -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#1A3A6B"
+        android:pathData="M54,6a48,48 0,1 1,0 96a48,48 0,1 1,0 -96z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,36h48a4,4 0,0 1,4 4v28a4,4 0,0 1,-4 4h-48a4,4 0,0 1,-4 -4v-28a4,4 0,0 1,4 -4z" />
+    <path
+        android:fillColor="#1A3A6B"
+        android:pathData="M34,42h3v24h-3z M39,42h1.5v24h-1.5z M42.5,42h3v24h-3z M47.5,42h1.5v24h-1.5z M51,42h4v24h-4z M57,42h1.5v24h-1.5z M60.5,42h3v24h-3z M65.5,42h1.5v24h-1.5z M69,42h2v24h-2z M73,42h1.5v24h-1.5z" />
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M27,53.25h54v1.5h-54z" />
+</vector>
