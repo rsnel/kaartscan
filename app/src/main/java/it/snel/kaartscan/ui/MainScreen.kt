@@ -49,6 +49,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,7 +98,36 @@ fun MainScreen(vm: MainViewModel, me: Me) {
     var tab by rememberSaveable { mutableStateOf<Tab?>(null) }
     BackHandler(enabled = tab != null) { tab = null }
 
-    MainScaffold(tab, me, onBack = { tab = null }, onRefresh = { t -> vm.load(t) }) {
+    // check the server every 30 s while the app is on screen, so the status
+    // dot turns red when the connection drops between scans
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            vm.heartbeat()
+            while (true) {
+                delay(MainViewModel.HEARTBEAT_MS)
+                vm.heartbeat()
+            }
+        }
+    }
+    val server by vm.server.collectAsState()
+
+    MainScaffold(
+        tab, me,
+        onBack = { tab = null },
+        onRefresh = { t -> vm.load(t) },
+        statusDot = {
+            ServerStatusDot(
+                snapshot = server,
+                loggedIn = true,
+                server = vm.baseUrl,
+                user = me.username,
+                feest = me.feestNaam,
+                checking = vm.checking,
+                onCheckNow = { vm.heartbeat(onlyIfStale = false) },
+            )
+        },
+    ) {
         when (tab) {
             null -> StartScreen(onSelect = { tab = it }, onLogout = { vm.logout() })
             Tab.VERKOOP -> ScanScreen(vm, Tab.VERKOOP)
@@ -111,6 +144,7 @@ internal fun MainScaffold(
     me: Me,
     onBack: () -> Unit,
     onRefresh: (Tab) -> Unit,
+    statusDot: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     Scaffold(
@@ -136,6 +170,7 @@ internal fun MainScaffold(
                     }
                 },
                 actions = {
+                    statusDot()
                     if (tab != null) {
                         IconButton(onClick = { onRefresh(tab) }) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Vernieuwen")

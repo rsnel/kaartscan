@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -54,6 +55,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var alphabetic by mutableStateOf(false)
         private set
 
+    /** for the status dot; grey (UNKNOWN) is decided by the UI when not logged in */
+    val server: StateFlow<ServerSnapshot> get() = client.stats.snapshot
+    var checking by mutableStateOf(false)
+        private set
+
     val baseUrl: String get() = client.baseUrl
     val lastUsername: String get() = client.lastUsername
 
@@ -78,6 +84,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun state(tab: Tab): ScreenState = screens.getValue(tab).value
+
+    /**
+     * Asks the server who we are, so the status dot also turns red when the
+     * connection drops while nobody is scanning; refreshes the party too.
+     * With [onlyIfStale], skipped when there was contact recently.
+     */
+    fun heartbeat(onlyIfStale: Boolean = true) {
+        if (me == null || checking) return
+        val last = client.stats.snapshot.value.lastContactAt
+        if (onlyIfStale && last != null && System.currentTimeMillis() - last < HEARTBEAT_MS) return
+        checking = true
+        viewModelScope.launch {
+            try {
+                val user = io { client.me() }
+                if (me != null) {
+                    me = user
+                    if (!user.introduceeToegestaan) introducee = false
+                }
+            } catch (e: SessionExpiredException) {
+                if (me != null) sessionExpired(e)
+            } catch (e: Exception) {
+                // the status dot shows it
+            } finally {
+                checking = false
+            }
+        }
+    }
 
     private fun update(tab: Tab, f: (ScreenState) -> ScreenState) {
         val s = screens.getValue(tab)
@@ -253,5 +286,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val SAME_CODE_IGNORE_MS = 4000L
+        const val HEARTBEAT_MS = 30_000L
     }
 }

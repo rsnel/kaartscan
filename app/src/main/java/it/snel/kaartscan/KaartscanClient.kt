@@ -50,6 +50,9 @@ class KaartscanClient(context: Context) {
     @Volatile
     private var meldingSupported: Boolean? = null
 
+    /** outcome of every request, for the status dot */
+    val stats = ServerStats()
+
     var baseUrl: String
         get() = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
         set(value) {
@@ -69,6 +72,7 @@ class KaartscanClient(context: Context) {
     fun login(username: String, password: String): Me {
         cookieJar.clear()
         meldingSupported = null
+        stats.reset()
         lastUsername = username
         val r = post("call.php?action=do_login", listOf("username" to username, "password" to password))
         if (r.code == 200 && Html.isLoginPage(r.body)) {
@@ -153,10 +157,12 @@ class KaartscanClient(context: Context) {
             try {
                 val m = Api.melding(api("action=melding"))
                 meldingSupported = true
+                stats.meldingApi(true)
                 return m
             } catch (e: ApiException) {
                 if (e.code != 400) throw e
                 meldingSupported = false // older api.php: "onbekende action"
+                stats.meldingApi(false)
             }
         }
         val page = Html.parse(get(url(fallbackPage)).body)
@@ -179,10 +185,26 @@ class KaartscanClient(context: Context) {
         return base.resolve(path) ?: throw ServerException("Ongeldig pad: $path")
     }
 
-    private fun execute(request: Request): Response =
-        http.newCall(request).execute().use { r ->
-            Response(r.request.url, r.code, r.header("Content-Type"), r.header("Location"), r.body?.string() ?: "")
+    private fun execute(request: Request): Response {
+        val start = System.nanoTime()
+        val response = try {
+            http.newCall(request).execute().use { r ->
+                Response(r.request.url, r.code, r.header("Content-Type"), r.header("Location"), r.body?.string() ?: "")
+            }
+        } catch (e: IOException) {
+            stats.down(e.message?.let { "${e.javaClass.simpleName}: $it" } ?: e.javaClass.simpleName)
+            throw e
         }
+        if (response.code >= 500) stats.unexpected("HTTP ${response.code} op ${request.url.encodedPath}", countedAsOk = false)
+        else stats.ok((System.nanoTime() - start) / 1_000_000)
+        return response
+    }
+
+    /** a ServerException for an answer the server should not have given, counted in [stats] */
+    private fun unexpected(message: String, alreadyCounted: Boolean = false): ServerException {
+        if (!alreadyCounted) stats.unexpected(message)
+        return ServerException(message)
+    }
 
     /**
      * GET api.php. With the phplib $json_api patch, errors come as JSON with
@@ -193,16 +215,20 @@ class KaartscanClient(context: Context) {
         val r = execute(Request.Builder().url(url("api.php?$query")).get().build())
         if (r.code in 300..399) throw SessionExpiredException(null)
         if (r.contentType?.startsWith("application/json") != true) {
-            if (Html.isLoginPage(r.body)) throw SessionExpiredException(Html.parse(r.body).error?.toString())
+            if (Html.isLoginPage(r.body)) {
+                stats.jsonErrors(false)
+                throw SessionExpiredException(Html.parse(r.body).error?.toString())
+            }
             check(r) // error_system() text, HTTP errors
-            throw ServerException("Onverwacht antwoord van api.php (HTTP ${r.code}). Staat api.php op de server?")
+            throw unexpected("Onverwacht antwoord van api.php (HTTP ${r.code}). Staat api.php op de server?")
         }
         val o = try {
             JSONObject(r.body)
         } catch (e: JSONException) {
-            throw ServerException("Ongeldig antwoord van api.php")
+            throw unexpected("Ongeldig antwoord van api.php", alreadyCounted = r.code >= 500)
         }
         val err = if (o.has("error")) o.optString("error") else null
+        if (r.code == 401 || r.code == 403) stats.jsonErrors(true)
         return when {
             r.code == 401 -> throw SessionExpiredException(null)
             r.code == 403 -> throw SessionExpiredException(err ?: "Geen toegang")
@@ -216,13 +242,13 @@ class KaartscanClient(context: Context) {
         repeat(10) {
             val r = execute(Request.Builder().url(current).get().build())
             if (r.code in 300..399) {
-                val loc = r.location ?: throw ServerException("Redirect zonder Location-header")
-                current = current.resolve(loc) ?: throw ServerException("Ongeldige redirect: $loc")
+                val loc = r.location ?: throw unexpected("Redirect zonder Location-header")
+                current = current.resolve(loc) ?: throw unexpected("Ongeldige redirect: $loc")
                 return@repeat
             }
             return check(r)
         }
-        throw ServerException("Te veel redirects")
+        throw unexpected("Te veel redirects")
     }
 
     private fun post(path: String, form: List<Pair<String, String>>): Response {
@@ -232,10 +258,10 @@ class KaartscanClient(context: Context) {
     }
 
     private fun check(r: Response): Response {
-        if (r.code >= 400) throw ServerException("HTTP ${r.code} van de server")
+        if (r.code >= 400) throw unexpected("HTTP ${r.code} van de server", alreadyCounted = r.code >= 500)
         // error_system() answers 200 text/plain
         if (r.code == 200 && r.contentType?.startsWith("text/plain") == true && r.body.contains("systeemfout")) {
-            throw ServerException(r.body.lineSequence().filter { it.isNotBlank() && !it.startsWith("---") }.take(2).joinToString("\n"))
+            throw unexpected(r.body.lineSequence().filter { it.isNotBlank() && !it.startsWith("---") }.take(2).joinToString("\n"))
         }
         return r
     }

@@ -2,6 +2,7 @@ package it.snel.kaartscan.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -20,11 +21,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
@@ -65,6 +68,10 @@ fun LoginScreen(vm: MainViewModel) {
         resumableUser = vm.resumable?.username,
         onResume = { vm.resume() },
         checkingSession = vm.checkingSession,
+        statusDot = {
+            val server by vm.server.collectAsState()
+            ServerStatusDot(snapshot = server, loggedIn = false, server = vm.baseUrl, user = null, feest = null)
+        },
     )
 }
 
@@ -85,6 +92,7 @@ internal fun LoginContent(
     resumableUser: String?,
     onResume: () -> Unit,
     checkingSession: Boolean,
+    statusDot: @Composable () -> Unit = {},
 ) {
     Scaffold { pad ->
         Column(
@@ -96,7 +104,10 @@ internal fun LoginContent(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Kaartscan OVC", style = MaterialTheme.typography.headlineMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Kaartscan OVC", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                statusDot()
+            }
             Text("Inloggen met lokaal wachtwoord", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Docenten loggen in met het eerste deel van hun schoolemail. " +

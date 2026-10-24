@@ -23,6 +23,8 @@ import it.snel.kaartscan.Entry
 import it.snel.kaartscan.Me
 import it.snel.kaartscan.Aantallen
 import it.snel.kaartscan.ScreenState
+import it.snel.kaartscan.ServerSnapshot
+import it.snel.kaartscan.ServerStatus
 import it.snel.kaartscan.Tab
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -38,7 +40,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [34], qualifiers = RobolectricDeviceQualifiers.Pixel7)
 class ScreenshotTest {
     private val user = "j.devries"
-    private val me = Me(user, "Halloweenfeest 2026", introduceeToegestaan = true)
+    private val me = Me(user, "Examengala 2021", introduceeToegestaan = true)
 
     private fun shot(name: String, content: @Composable () -> Unit) =
         captureRoboImage("../docs/screenshots/$name.png") {
@@ -66,18 +68,27 @@ class ScreenshotTest {
     )
 
     private val verkoopRows = listOf(
-        entry(41, "2026-10-31 19:42:10", "213874", "Sanne Bakker (6V2)", true),
-        entry(40, "2026-10-31 19:41:55", "209331", "Daan Visser (5H1)", false),
-        entry(39, "2026-10-31 19:40:02", "211408", "Lotte van Dijk (6V1)", false),
-        entry(38, "2026-10-31 19:38:47", "210576", "Emma Smit (5H2)", true),
+        entry(41, "2021-07-02 19:42:10", "213874", "Sanne Bakker (6V2)", true),
+        entry(40, "2021-07-02 19:41:55", "209331", "Daan Visser (5H1)", false),
+        entry(39, "2021-07-02 19:40:02", "211408", "Lotte van Dijk (6V1)", false),
+        entry(38, "2021-07-02 19:38:47", "210576", "Emma Smit (5H2)", true),
     )
 
     private val controleRows = listOf(
-        entry(12, "2026-10-31 21:15:03", "213874", "Sanne Bakker (6V2)", true, bron = null),
-        entry(11, "2026-10-31 21:14:40", "211408", "Lotte van Dijk (6V1)", false, bron = null),
+        entry(12, "2021-07-02 21:15:03", "213874", "Sanne Bakker (6V2)", true, bron = null),
+        entry(11, "2021-07-02 21:14:40", "211408", "Lotte van Dijk (6V1)", false, bron = null),
     )
 
     private val aantallen = Aantallen(verkocht = Counts("143", "128", "15"), binnen = Counts("87", "79", "8"))
+
+    @Composable
+    private fun GreenDot() = ServerStatusDot(
+        snapshot = ServerSnapshot(status = ServerStatus.OK),
+        loggedIn = true,
+        server = "https://srv-ovc-linux.ovc.nl/kaartscan/",
+        user = user,
+        feest = me.feestNaam,
+    )
 
     @Composable
     private fun CameraIllustration() {
@@ -126,19 +137,22 @@ class ScreenshotTest {
             resumableUser = null,
             onResume = {},
             checkingSession = false,
+            statusDot = {
+                ServerStatusDot(snapshot = ServerSnapshot(), loggedIn = false, server = "", user = null, feest = null)
+            },
         )
     }
 
     @Test
     fun start() = shot("2-start") {
-        MainScaffold(null, me, onBack = {}, onRefresh = {}) {
+        MainScaffold(null, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             StartScreen(onSelect = {}, onLogout = {})
         }
     }
 
     @Test
     fun verkoop() = shot("3-verkoop") {
-        MainScaffold(Tab.VERKOOP, me, onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.VERKOOP, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             ScanContent(
                 tab = Tab.VERKOOP,
                 state = ScreenState(
@@ -161,7 +175,7 @@ class ScreenshotTest {
 
     @Test
     fun verkoopZonderIntroducee() = shot("3b-verkoop-zonder-introducee") {
-        MainScaffold(Tab.VERKOOP, me.copy(feestNaam = "Kerstgala 2026", introduceeToegestaan = false), onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.VERKOOP, me.copy(feestNaam = "Kerstgala 2021", introduceeToegestaan = false), onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             ScanContent(
                 tab = Tab.VERKOOP,
                 state = ScreenState(
@@ -184,7 +198,7 @@ class ScreenshotTest {
 
     @Test
     fun controle() = shot("4-controle") {
-        MainScaffold(Tab.CONTROLE, me, onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.CONTROLE, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             ScanContent(
                 tab = Tab.CONTROLE,
                 state = ScreenState(
@@ -212,7 +226,7 @@ class ScreenshotTest {
 
     @Test
     fun controleFout() = shot("5-controle-fout") {
-        MainScaffold(Tab.CONTROLE, me, onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.CONTROLE, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             ScanContent(
                 tab = Tab.CONTROLE,
                 state = ScreenState(
@@ -236,10 +250,10 @@ class ScreenshotTest {
 
     @Test
     fun overzicht() = shot("6-overzicht") {
-        MainScaffold(Tab.OVERZICHT, me, onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.OVERZICHT, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             OverzichtContent(
                 state = ScreenState(
-                    entries = verkoopRows + entry(37, "2026-10-31 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
+                    entries = verkoopRows + entry(37, "2021-07-02 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
                     aantallen = aantallen,
                     loaded = true,
                 ),
