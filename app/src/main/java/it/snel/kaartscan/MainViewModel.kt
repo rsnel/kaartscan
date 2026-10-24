@@ -47,6 +47,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var loginError by mutableStateOf<String?>(null)
         private set
+    /**
+     * The last login attempt (or the check of the stored session) failed
+     * because the server could not be reached or gave a server error: the
+     * dot on the login screen is red until a login succeeds or fails normally.
+     */
+    var loginServerProblem by mutableStateOf(false)
+        private set
 
     /** The 'introducee' checkbox of kaartverkoop; reset after a successful sale, like the web form. */
     var introducee by mutableStateOf(false)
@@ -74,8 +81,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             checkingSession = true
             viewModelScope.launch {
                 resumable = try {
-                    io { client.checkSession() }
+                    io { client.checkSession() }.also { loginServerProblem = false }
                 } catch (e: Exception) {
+                    loginServerProblem = true
                     null
                 }
                 checkingSession = false
@@ -131,10 +139,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val user = io { client.login(username.trim(), password) }
                 resetScreens()
                 resumable = null
+                loginServerProblem = false
                 me = user
             } catch (e: LoginFailedException) {
+                // a normal refusal: wrong password, not an admin
+                loginServerProblem = false
                 loginError = e.message
             } catch (e: Exception) {
+                // no connection, HTTP 5xx, error_system(), unexpected answer
+                loginServerProblem = true
                 loginError = failMessage(e)
             } finally {
                 loginBusy = false

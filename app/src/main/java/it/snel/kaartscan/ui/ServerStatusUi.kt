@@ -76,13 +76,31 @@ fun ServerStatusDot(
     feest: String?,
     checking: Boolean = false,
     onCheckNow: (() -> Unit)? = null,
+    /** on the login screen: the last login failed because of the server, show red */
+    loginProblem: Boolean = false,
 ) {
-    val status = if (loggedIn) snapshot.status else ServerStatus.UNKNOWN
+    val status = when {
+        loggedIn -> snapshot.status
+        loginProblem -> ServerStatus.DOWN
+        else -> ServerStatus.UNKNOWN
+    }
+    // on the login screen red covers both no connection and a server error
+    val title = when {
+        loggedIn || !loginProblem -> status.label()
+        snapshot.status == ServerStatus.UNEXPECTED -> "Serverfout bij inloggen"
+        else -> "Geen verbinding bij inloggen"
+    }
+    val explanation = when {
+        loggedIn || !loginProblem -> status.explanation()
+        snapshot.status == ServerStatus.UNEXPECTED ->
+            "De server gaf een fout bij het inloggen. Probeer het later opnieuw of meld het bij de beheerder."
+        else -> "Bij het inloggen was de server niet bereikbaar. Controleer wifi of mobiele data en probeer opnieuw."
+    }
     var open by remember { mutableStateOf(false) }
 
     IconButton(
         onClick = { open = true },
-        modifier = Modifier.semantics { contentDescription = "Serverstatus: ${status.label()}" },
+        modifier = Modifier.semantics { contentDescription = "Serverstatus: $title" },
     ) {
         Box(
             Modifier
@@ -93,13 +111,15 @@ fun ServerStatusDot(
     }
 
     if (open) {
-        ServerStatusDialog(status, snapshot, loggedIn, server, user, feest, checking, onCheckNow) { open = false }
+        ServerStatusDialog(status, title, explanation, snapshot, loggedIn, server, user, feest, checking, onCheckNow) { open = false }
     }
 }
 
 @Composable
 private fun ServerStatusDialog(
     status: ServerStatus,
+    title: String,
+    explanation: String,
     s: ServerSnapshot,
     loggedIn: Boolean,
     server: String,
@@ -123,13 +143,13 @@ private fun ServerStatusDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Box(Modifier.size(20.dp).background(status.color(), CircleShape)) },
-        title = { Text(status.label()) },
+        title = { Text(title) },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text(status.explanation(), style = MaterialTheme.typography.bodyMedium)
+                Text(explanation, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.size(4.dp))
                 Line("Server", server)
                 if (loggedIn) {

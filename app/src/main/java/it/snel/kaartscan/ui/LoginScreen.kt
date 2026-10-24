@@ -70,7 +70,14 @@ fun LoginScreen(vm: MainViewModel) {
         checkingSession = vm.checkingSession,
         statusDot = {
             val server by vm.server.collectAsState()
-            ServerStatusDot(snapshot = server, loggedIn = false, server = vm.baseUrl, user = null, feest = null)
+            ServerStatusDot(
+                snapshot = server,
+                loggedIn = false,
+                server = vm.baseUrl,
+                user = null,
+                feest = null,
+                loginProblem = vm.loginServerProblem,
+            )
         },
     )
 }
