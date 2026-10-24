@@ -30,7 +30,8 @@ card held in front of the camera is submitted once. There is a torch button for 
 venues.
 
 Reading goes through `api.php` (JSON; `whoami`, `aantallen`, `kaartverkoop`,
-`kaartcontrole`, `melding`), writing through the same `do_*.php` scripts the website
+`kaartcontrole`, `melding`; the two lists include the counts, older versions without
+them still work), writing through the same `do_*.php` scripts the website
 uses. Their outcome (`$_SESSION['notice']` / `$_SESSION['err']`) comes from
 `api.php?action=melding`, or from the redirected page on a server whose `api.php` does
 not have that action yet, so validation rules and messages stay on the server. The

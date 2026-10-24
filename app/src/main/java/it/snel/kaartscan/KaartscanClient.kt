@@ -133,15 +133,18 @@ class KaartscanClient(context: Context) {
 
     fun aantallen(): Aantallen = Api.aantallen(api("action=aantallen"))
 
-    fun kaartjes(alphabetic: Boolean = false, showDeleted: Boolean = false, limit: Int? = null): List<Entry> {
+    fun kaartjes(alphabetic: Boolean = false, showDeleted: Boolean = false, limit: Int? = null): Listing {
         val q = StringBuilder("action=kaartverkoop&order=").append(if (alphabetic) "alph" else "chron")
         if (showDeleted) q.append("&verwijderd=1")
         if (limit != null) q.append("&limit=").append(limit)
-        return Api.kaartjes(api(q.toString()), baseUrl)
+        val o = api(q.toString())
+        return Listing(Api.kaartjes(o, baseUrl), Api.aantallenIn(o))
     }
 
-    fun controles(limit: Int? = null): List<Entry> =
-        Api.controles(api("action=kaartcontrole" + (limit?.let { "&limit=$it" } ?: "")), baseUrl)
+    fun controles(limit: Int? = null): Listing {
+        val o = api("action=kaartcontrole" + (limit?.let { "&limit=$it" } ?: ""))
+        return Listing(Api.controles(o, baseUrl), Api.aantallenIn(o))
+    }
 
     // ---- writing: do_*.php -----------------------------------------------------
 

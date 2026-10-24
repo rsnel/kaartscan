@@ -359,7 +359,7 @@ internal fun ScanContent(
                 }
             }
             if (tab == Tab.CONTROLE) {
-                state.aantallen?.let { CountsRow("Binnen", it.binnen, introduceeToegestaan) }
+                state.aantallen?.let { BinnenRow(it, introduceeToegestaan) }
             } else {
                 Text(
                     "De barcode moet een leerlingnummer zijn van minstens 6 cijfers.",

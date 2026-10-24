@@ -201,12 +201,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Also refreshes [me], so a change of party on the server shows up. */
     private fun fetch(tab: Tab): Loaded {
         val user = client.me()
-        return when (tab) {
-            // kaartverkoop.php shows the latest 10, kaartcontrole.php all of them
-            Tab.VERKOOP -> Loaded(user, client.kaartjes(limit = 10), null)
-            Tab.CONTROLE -> Loaded(user, client.controles(), client.aantallen())
-            Tab.OVERZICHT -> Loaded(user, client.kaartjes(alphabetic, showDeleted), client.aantallen())
+        // kaartverkoop.php shows the latest 10, kaartcontrole.php all of them
+        val listing = when (tab) {
+            Tab.VERKOOP -> client.kaartjes(limit = 10)
+            Tab.CONTROLE -> client.controles()
+            Tab.OVERZICHT -> client.kaartjes(alphabetic, showDeleted)
         }
+        // an api.php without counts in its lists: ask for them separately
+        val aantallen = listing.aantallen ?: if (tab == Tab.VERKOOP) null else client.aantallen()
+        return Loaded(user, listing.entries, aantallen)
     }
 
     private fun apply(tab: Tab, loaded: Loaded) {

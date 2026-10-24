@@ -46,9 +46,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import it.snel.kaartscan.Aantallen
 import it.snel.kaartscan.Counts
 import it.snel.kaartscan.Message
 import it.snel.kaartscan.Entry
@@ -108,6 +112,42 @@ fun CountsRow(label: String, counts: Counts, introduceeToegestaan: Boolean, modi
             Stat("Leerlingen", counts.leerlingen)
             Stat("Introducees", counts.introducees)
         }
+    }
+}
+
+/** Kaartcontrole: inside / sold, per category, or only students for a party without introducees. */
+@Composable
+fun BinnenRow(aantallen: Aantallen, introduceeToegestaan: Boolean, modifier: Modifier = Modifier) {
+    val binnen = aantallen.binnen
+    val verkocht = aantallen.verkocht
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        if (!introduceeToegestaan && binnen.introducees == "0" && verkocht.introducees == "0") {
+            Ratio("Leerlingen binnen", binnen.leerlingen, verkocht.leerlingen)
+        } else {
+            Ratio("Binnen", binnen.total, verkocht.total)
+            Ratio("Leerlingen", binnen.leerlingen, verkocht.leerlingen)
+            Ratio("Introducees", binnen.introducees, verkocht.introducees)
+        }
+    }
+}
+
+/** "87 / 143": inside, then sold in a smaller, quieter type */
+@Composable
+private fun Ratio(label: String, inside: String, sold: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(inside) }
+                withStyle(
+                    SpanStyle(
+                        fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                ) { append(" / $sold") }
+            },
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }
 

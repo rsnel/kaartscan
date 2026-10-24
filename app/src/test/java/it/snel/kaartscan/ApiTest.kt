@@ -93,6 +93,17 @@ class ApiTest {
     }
 
     @Test
+    fun aantallenInList() {
+        val o = JSONObject("""
+            {"aantallen": {"verkocht": {"totaal": 4, "leerlingen": 3, "introducees": 1},
+                           "binnen": {"totaal": 3, "leerlingen": 2, "introducees": 1}},
+             "controles": []}
+        """)
+        assertEquals(Aantallen(Counts("4", "3", "1"), Counts("3", "2", "1")), Api.aantallenIn(o))
+        assertNull(Api.aantallenIn(JSONObject("""{"controles": []}""")))
+    }
+
+    @Test
     fun melding() {
         assertEquals(
             Message("Dubbel", "Barcode 213874 staat al in het systeem", true),
