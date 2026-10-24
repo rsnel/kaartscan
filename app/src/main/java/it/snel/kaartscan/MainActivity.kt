@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import it.snel.kaartscan.ui.KaartscanTheme
 import it.snel.kaartscan.ui.LoginScreen
 import it.snel.kaartscan.ui.MainScreen
+import it.snel.kaartscan.ui.StartupScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,5 +26,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun KaartscanApp(vm: MainViewModel = viewModel()) {
     val me = vm.me
-    if (me == null) LoginScreen(vm) else MainScreen(vm, me)
+    when {
+        me != null -> MainScreen(vm, me)
+        vm.checkingSession -> StartupScreen(vm.baseUrl, onSkip = { vm.skipSessionCheck() })
+        else -> LoginScreen(vm)
+    }
 }

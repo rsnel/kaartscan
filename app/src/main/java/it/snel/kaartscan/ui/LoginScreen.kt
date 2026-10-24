@@ -15,7 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -65,9 +64,6 @@ fun LoginScreen(vm: MainViewModel) {
         busy = vm.loginBusy,
         canLogin = canLogin,
         onLogin = { doLogin() },
-        resumableUser = vm.resumable?.username,
-        onResume = { vm.resume() },
-        checkingSession = vm.checkingSession,
         statusDot = {
             val server by vm.server.collectAsState()
             ServerStatusDot(
@@ -96,9 +92,6 @@ internal fun LoginContent(
     busy: Boolean,
     canLogin: Boolean,
     onLogin: () -> Unit,
-    resumableUser: String?,
-    onResume: () -> Unit,
-    checkingSession: Boolean,
     statusDot: @Composable () -> Unit = {},
 ) {
     Scaffold { pad ->
@@ -160,14 +153,23 @@ internal fun LoginContent(
                 if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 else Text("Inloggen")
             }
-            resumableUser?.let { user ->
-                OutlinedButton(onClick = onResume, modifier = Modifier.fillMaxWidth()) {
-                    Text("Doorgaan als $user")
-                }
-            }
-            if (checkingSession) {
-                Text("Opgeslagen sessie controleren…", style = MaterialTheme.typography.bodySmall)
-            }
+        }
+    }
+}
+
+/** Shown at startup while the stored session is checked. */
+@Composable
+fun StartupScreen(server: String, onSkip: () -> Unit) {
+    Scaffold { pad ->
+        Column(
+            Modifier.padding(pad).fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Kaartscan OVC", style = MaterialTheme.typography.headlineMedium)
+            CircularProgressIndicator()
+            Text("Verbinden met $server…", style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = onSkip) { Text("Naar inloggen") }
         }
     }
 }

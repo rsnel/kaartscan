@@ -8,7 +8,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,11 +40,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Logged in user and current party; null: show the login screen. */
     var me by mutableStateOf<Me?>(null)
         private set
-    /** A stored session that is still valid, offered on the login screen. */
-    var resumable by mutableStateOf<Me?>(null)
-        private set
+    /** At startup, checking whether the stored session is still valid. */
     var checkingSession by mutableStateOf(false)
         private set
+    private var sessionJob: Job? = null
     var loginBusy by mutableStateOf(false)
         private set
     var loginError by mutableStateOf<String?>(null)
@@ -77,16 +78,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var lastScanAt = 0L
 
     init {
+        // a still valid stored session skips the login screen
         if (client.hasSession()) {
             checkingSession = true
-            viewModelScope.launch {
-                resumable = try {
-                    io { client.checkSession() }.also { loginServerProblem = false }
+            sessionJob = viewModelScope.launch {
+                try {
+                    val user = io { client.checkSession() }
+                    loginServerProblem = false
+                    if (user != null) {
+                        resetScreens()
+                        me = user
+                    }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
+                    // no connection or a server error: login screen with a red dot
                     loginServerProblem = true
-                    null
+                } finally {
+                    checkingSession = false
                 }
-                checkingSession = false
             }
         }
     }
@@ -138,7 +148,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 client.baseUrl = server
                 val user = io { client.login(username.trim(), password) }
                 resetScreens()
-                resumable = null
                 loginServerProblem = false
                 me = user
             } catch (e: LoginFailedException) {
@@ -155,17 +164,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun resume() {
-        val user = resumable ?: return
-        resetScreens()
-        resumable = null
-        loginError = null
-        me = user
+    /** "Naar inloggen" on the startup screen, when the session check takes long. */
+    fun skipSessionCheck() {
+        sessionJob?.cancel()
+        sessionJob = null
+        checkingSession = false
     }
 
     fun logout() {
         me = null
-        resumable = null
         loginError = null
         resetScreens()
         viewModelScope.launch { io { client.logout() } }
@@ -173,7 +180,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun sessionExpired(e: SessionExpiredException) {
         me = null
-        resumable = null
         loginError = "Sessie verlopen of geen toegang" + (e.message?.let { " ($it)" } ?: "") + ". Log opnieuw in."
     }
 

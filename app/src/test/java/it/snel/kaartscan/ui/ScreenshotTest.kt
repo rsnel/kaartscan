@@ -134,9 +134,6 @@ class ScreenshotTest {
             busy = false,
             canLogin = true,
             onLogin = {},
-            resumableUser = null,
-            onResume = {},
-            checkingSession = false,
             statusDot = {
                 ServerStatusDot(snapshot = ServerSnapshot(), loggedIn = false, server = "", user = null, feest = null)
             },
