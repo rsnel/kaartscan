@@ -63,7 +63,7 @@ fun LoginScreen(vm: MainViewModel) {
             Text("Inloggen met lokaal wachtwoord", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Docenten loggen in met het eerste deel van hun schoolemail. " +
-                    "Het wachtwoord is het schoolwachtwoord. Alleen beheerders van Kaartscan hebben toegang.",
+                    "Het wachtwoord is een zelfgekozen wachtwoord dat je hebt insgesteld of kan installen op https://srv-ovc-linux.ovc.nl/checkset/ .",
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedTextField(
