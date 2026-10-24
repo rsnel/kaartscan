@@ -20,6 +20,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +47,17 @@ fun LoginScreen(vm: MainViewModel) {
     var server by rememberSaveable { mutableStateOf(vm.baseUrl) }
     var editServer by rememberSaveable { mutableStateOf(false) }
     val focus = LocalFocusManager.current
+
+    // no session: check every 30 s whether the server is alive, for the dot
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                vm.pingServer()
+                delay(MainViewModel.HEARTBEAT_MS)
+            }
+        }
+    }
 
     val canLogin = !vm.loginBusy && username.isNotBlank() && password.isNotEmpty()
     val doLogin = {
@@ -72,7 +88,7 @@ fun LoginScreen(vm: MainViewModel) {
                 server = vm.baseUrl,
                 user = null,
                 feest = null,
-                loginProblem = vm.loginServerProblem,
+                onCheckNow = { vm.pingServer() },
             )
         },
     )

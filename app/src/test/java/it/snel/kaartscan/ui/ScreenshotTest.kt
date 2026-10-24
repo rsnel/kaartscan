@@ -135,7 +135,7 @@ class ScreenshotTest {
             canLogin = true,
             onLogin = {},
             statusDot = {
-                ServerStatusDot(snapshot = ServerSnapshot(), loggedIn = false, server = "", user = null, feest = null)
+                ServerStatusDot(snapshot = ServerSnapshot(status = ServerStatus.OK), loggedIn = false, server = "", user = null, feest = null)
             },
         )
     }

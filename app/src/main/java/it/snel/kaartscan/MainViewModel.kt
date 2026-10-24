@@ -48,13 +48,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var loginError by mutableStateOf<String?>(null)
         private set
-    /**
-     * The last login attempt (or the check of the stored session) failed
-     * because the server could not be reached or gave a server error: the
-     * dot on the login screen is red until a login succeeds or fails normally.
-     */
-    var loginServerProblem by mutableStateOf(false)
-        private set
 
     /** The 'introducee' checkbox of kaartverkoop; reset after a successful sale, like the web form. */
     var introducee by mutableStateOf(false)
@@ -84,7 +77,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             sessionJob = viewModelScope.launch {
                 try {
                     val user = io { client.checkSession() }
-                    loginServerProblem = false
                     if (user != null) {
                         resetScreens()
                         me = user
@@ -92,8 +84,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    // no connection or a server error: login screen with a red dot
-                    loginServerProblem = true
+                    // no connection or a server error: the login screen, the dot shows it
                 } finally {
                     checkingSession = false
                 }
@@ -102,6 +93,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun state(tab: Tab): ScreenState = screens.getValue(tab).value
+
+    private var pinging = false
+
+    /** Without a session (login screen): only check whether the server is alive, for the dot. */
+    fun pingServer() {
+        if (me != null || pinging) return
+        pinging = true
+        viewModelScope.launch {
+            try {
+                io { client.ping() }
+            } finally {
+                pinging = false
+            }
+        }
+    }
 
     /**
      * Asks the server who we are, so the status dot also turns red when the
@@ -148,15 +154,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 client.baseUrl = server
                 val user = io { client.login(username.trim(), password) }
                 resetScreens()
-                loginServerProblem = false
                 me = user
             } catch (e: LoginFailedException) {
-                // a normal refusal: wrong password, not an admin
-                loginServerProblem = false
                 loginError = e.message
             } catch (e: Exception) {
-                // no connection, HTTP 5xx, error_system(), unexpected answer
-                loginServerProblem = true
                 loginError = failMessage(e)
             } finally {
                 loginBusy = false

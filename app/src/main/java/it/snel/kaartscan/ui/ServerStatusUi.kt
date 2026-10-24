@@ -49,14 +49,14 @@ private fun ServerStatus.color(): Color = when (this) {
 }
 
 private fun ServerStatus.label(): String = when (this) {
-    ServerStatus.UNKNOWN -> "Niet ingelogd"
+    ServerStatus.UNKNOWN -> "Nog niet gecontroleerd"
     ServerStatus.OK -> "Verbonden"
     ServerStatus.UNEXPECTED -> "Onverwacht antwoord"
     ServerStatus.DOWN -> "Geen verbinding"
 }
 
 private fun ServerStatus.explanation(): String = when (this) {
-    ServerStatus.UNKNOWN -> "De status wordt bijgehouden zodra je bent ingelogd."
+    ServerStatus.UNKNOWN -> "De app heeft de server nog niet bereikt of geprobeerd."
     ServerStatus.OK -> "De server antwoordt normaal."
     ServerStatus.UNEXPECTED -> "De server antwoordde, maar niet zoals verwacht. Controleer of scans goed zijn opgeslagen."
     ServerStatus.DOWN -> "Geen verbinding met de server of geen antwoord. Controleer wifi of mobiele data."
@@ -64,8 +64,8 @@ private fun ServerStatus.explanation(): String = when (this) {
 
 /**
  * Coloured dot in the top bar; a tap shows what the app knows about the
- * server. [loggedIn] false always shows grey (UNKNOWN), as asked: before
- * login the dot says nothing about the server.
+ * server. Nothing is shown until the first answer (or failure) is in.
+ * [loggedIn] only decides whether user and party are listed.
  */
 @Composable
 fun ServerStatusDot(
@@ -76,38 +76,24 @@ fun ServerStatusDot(
     feest: String?,
     checking: Boolean = false,
     onCheckNow: (() -> Unit)? = null,
-    /** on the login screen: the last login failed because of the server, show red */
-    loginProblem: Boolean = false,
 ) {
-    val status = when {
-        loggedIn -> snapshot.status
-        loginProblem -> ServerStatus.DOWN
-        else -> ServerStatus.UNKNOWN
-    }
-    // on the login screen red covers both no connection and a server error
-    val title = when {
-        loggedIn || !loginProblem -> status.label()
-        snapshot.status == ServerStatus.UNEXPECTED -> "Serverfout bij inloggen"
-        else -> "Geen verbinding bij inloggen"
-    }
-    val explanation = when {
-        loggedIn || !loginProblem -> status.explanation()
-        snapshot.status == ServerStatus.UNEXPECTED ->
-            "De server gaf een fout bij het inloggen. Probeer het later opnieuw of meld het bij de beheerder."
-        else -> "Bij het inloggen was de server niet bereikbaar. Controleer wifi of mobiele data en probeer opnieuw."
-    }
+    val status = snapshot.status
+    val title = status.label()
+    val explanation = status.explanation()
     var open by remember { mutableStateOf(false) }
 
     IconButton(
         onClick = { open = true },
         modifier = Modifier.semantics { contentDescription = "Serverstatus: $title" },
     ) {
-        Box(
-            Modifier
-                .size(14.dp)
-                .background(status.color(), CircleShape)
-                .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
-        )
+        if (status != ServerStatus.UNKNOWN) {
+            Box(
+                Modifier
+                    .size(14.dp)
+                    .background(status.color(), CircleShape)
+                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
+            )
+        }
     }
 
     if (open) {

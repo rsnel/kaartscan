@@ -104,6 +104,23 @@ class KaartscanClient(context: Context) {
         cookieJar.clear()
     }
 
+    /**
+     * Is the server alive? For the status dot when there is no session:
+     * api.php without a session answers 401 JSON (phplib $json_api patch,
+     * logs nothing) or the login page; both mean the server works. The
+     * outcome only goes to [stats].
+     */
+    fun ping() {
+        try {
+            val r = execute(Request.Builder().url(url("api.php?action=whoami")).get().build())
+            val json = r.contentType?.startsWith("application/json") == true
+            if (r.code < 500 && !json && !Html.isLoginPage(r.body))
+                stats.unexpected("Onverwacht antwoord van api.php (HTTP ${r.code})")
+        } catch (e: IOException) {
+            // counted in stats by execute()
+        }
+    }
+
     private fun loginPageError(): String? = try {
         Html.parse(get(url("index.php")).body).error?.toString()
     } catch (e: IOException) {
