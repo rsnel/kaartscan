@@ -49,6 +49,43 @@ fun LoginScreen(vm: MainViewModel) {
         }
     }
 
+    LoginContent(
+        username = username,
+        onUsernameChange = { username = it },
+        password = password,
+        onPasswordChange = { password = it },
+        server = server,
+        onServerChange = { server = it },
+        editServer = editServer,
+        onEditServer = { editServer = true },
+        error = vm.loginError,
+        busy = vm.loginBusy,
+        canLogin = canLogin,
+        onLogin = { doLogin() },
+        resumableUser = vm.resumableUser,
+        onResume = { vm.resume() },
+        checkingSession = vm.checkingSession,
+    )
+}
+
+@Composable
+internal fun LoginContent(
+    username: String,
+    onUsernameChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    server: String,
+    onServerChange: (String) -> Unit,
+    editServer: Boolean,
+    onEditServer: () -> Unit,
+    error: String?,
+    busy: Boolean,
+    canLogin: Boolean,
+    onLogin: () -> Unit,
+    resumableUser: String?,
+    onResume: () -> Unit,
+    checkingSession: Boolean,
+) {
     Scaffold { pad ->
         Column(
             Modifier
@@ -68,7 +105,7 @@ fun LoginScreen(vm: MainViewModel) {
             )
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
+                onValueChange = onUsernameChange,
                 label = { Text("Gebruikersnaam") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
@@ -76,41 +113,41 @@ fun LoginScreen(vm: MainViewModel) {
             )
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = onPasswordChange,
                 label = { Text("Wachtwoord") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { doLogin() }),
+                keyboardActions = KeyboardActions(onDone = { onLogin() }),
                 modifier = Modifier.fillMaxWidth(),
             )
             if (editServer) {
                 OutlinedTextField(
                     value = server,
-                    onValueChange = { server = it },
+                    onValueChange = onServerChange,
                     label = { Text("Server") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
-                TextButton(onClick = { editServer = true }) {
+                TextButton(onClick = onEditServer) {
                     Text("Server: $server", style = MaterialTheme.typography.bodySmall)
                 }
             }
-            vm.loginError?.let {
+            error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
-            Button(onClick = { doLogin() }, enabled = canLogin, modifier = Modifier.fillMaxWidth()) {
-                if (vm.loginBusy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            Button(onClick = onLogin, enabled = canLogin, modifier = Modifier.fillMaxWidth()) {
+                if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 else Text("Inloggen")
             }
-            vm.resumableUser?.let { user ->
-                OutlinedButton(onClick = { vm.resume() }, modifier = Modifier.fillMaxWidth()) {
+            resumableUser?.let { user ->
+                OutlinedButton(onClick = onResume, modifier = Modifier.fillMaxWidth()) {
                     Text("Doorgaan als $user")
                 }
             }
-            if (vm.checkingSession) {
+            if (checkingSession) {
                 Text("Opgeslagen sessie controleren…", style = MaterialTheme.typography.bodySmall)
             }
         }

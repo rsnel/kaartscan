@@ -80,6 +80,24 @@ jobs:
           cp "$apk" "kaartscan-$GITHUB_REF_NAME.apk"
           gh release create "$GITHUB_REF_NAME" "kaartscan-$GITHUB_REF_NAME.apk" --generate-notes
 
+      # Renders the screens (app/src/test/.../ScreenshotTest.kt) for the
+      # website in docs/ and commits them when they changed. Pushes made
+      # with the workflow token do not trigger a new run.
+      - name: Update screenshots in docs/
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          ./gradlew --no-daemon recordRoborazziDebug
+          git add docs/screenshots
+          if git diff --cached --quiet; then
+            echo "Screenshots unchanged"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Update screenshots"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
       - name: Clean up keystore
         if: always()
         run: rm -f "$RUNNER_TEMP/release.jks"

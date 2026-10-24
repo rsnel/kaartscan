@@ -64,6 +64,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import it.snel.kaartscan.MainViewModel
+import it.snel.kaartscan.ScreenState
 import it.snel.kaartscan.Tab
 import kotlinx.coroutines.delay
 
@@ -85,19 +86,37 @@ private fun Tab.icon(): ImageVector = when (this) {
     Tab.CONTROLE -> Icons.Filled.HowToReg
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(vm: MainViewModel, user: String) {
     // null: the start screen
     var tab by rememberSaveable { mutableStateOf<Tab?>(null) }
     BackHandler(enabled = tab != null) { tab = null }
 
+    MainScaffold(tab, user, onBack = { tab = null }, onRefresh = { t -> vm.load(t) }) {
+        when (tab) {
+            null -> StartScreen(onSelect = { tab = it }, onLogout = { vm.logout() })
+            Tab.VERKOOP -> ScanScreen(vm, Tab.VERKOOP)
+            Tab.OVERZICHT -> OverzichtScreen(vm)
+            Tab.CONTROLE -> ScanScreen(vm, Tab.CONTROLE)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun MainScaffold(
+    tab: Tab?,
+    user: String,
+    onBack: () -> Unit,
+    onRefresh: (Tab) -> Unit,
+    content: @Composable () -> Unit,
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 navigationIcon = {
                     if (tab != null) {
-                        IconButton(onClick = { tab = null }) {
+                        IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Terug")
                         }
                     }
@@ -109,8 +128,8 @@ fun MainScreen(vm: MainViewModel, user: String) {
                     }
                 },
                 actions = {
-                    tab?.let { t ->
-                        IconButton(onClick = { vm.load(t) }) {
+                    if (tab != null) {
+                        IconButton(onClick = { onRefresh(tab) }) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Vernieuwen")
                         }
                     }
@@ -119,12 +138,7 @@ fun MainScreen(vm: MainViewModel, user: String) {
         },
     ) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
-            when (tab) {
-                null -> StartScreen(onSelect = { tab = it }, onLogout = { vm.logout() })
-                Tab.VERKOOP -> ScanScreen(vm, Tab.VERKOOP)
-                Tab.OVERZICHT -> OverzichtScreen(vm)
-                Tab.CONTROLE -> ScanScreen(vm, Tab.CONTROLE)
-            }
+            content()
         }
     }
 }
@@ -213,25 +227,54 @@ fun ScanScreen(vm: MainViewModel, tab: Tab) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        if (cameraOn) {
-            if (hasPermission) {
-                CameraScanner(
-                    enabled = !state.submitting && !cooling,
-                    onBarcode = { vm.onScanned(tab, it) },
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                )
-            } else {
-                Box(
-                    Modifier.fillMaxWidth().height(120.dp).background(Color.Black),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    OutlinedButton(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text("Camera toestaan om te scannen", color = Color.White)
-                    }
+    ScanContent(
+        tab = tab,
+        state = state,
+        introducee = vm.introducee,
+        onIntroduceeChange = { vm.introducee = it },
+        manual = manual,
+        onManualChange = { manual = it },
+        onSubmit = submitManual,
+        cameraOn = cameraOn,
+        onToggleCamera = { cameraOn = !cameraOn },
+        onDelete = { vm.delete(tab, it) },
+    ) {
+        if (hasPermission) {
+            CameraScanner(
+                enabled = !state.submitting && !cooling,
+                onBarcode = { vm.onScanned(tab, it) },
+                modifier = Modifier.fillMaxWidth().height(200.dp),
+            )
+        } else {
+            Box(
+                Modifier.fillMaxWidth().height(120.dp).background(Color.Black),
+                contentAlignment = Alignment.Center,
+            ) {
+                OutlinedButton(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                    Text("Camera toestaan om te scannen", color = Color.White)
                 }
             }
         }
+    }
+}
+
+/** Stateless part of [ScanScreen]; [camera] is shown at the top while [cameraOn]. */
+@Composable
+internal fun ScanContent(
+    tab: Tab,
+    state: ScreenState,
+    introducee: Boolean,
+    onIntroduceeChange: (Boolean) -> Unit,
+    manual: String,
+    onManualChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    cameraOn: Boolean,
+    onToggleCamera: () -> Unit,
+    onDelete: (String) -> Unit,
+    camera: @Composable () -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        if (cameraOn) camera()
         Column(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -243,21 +286,21 @@ fun ScanScreen(vm: MainViewModel, tab: Tab) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = manual,
-                    onValueChange = { manual = it },
+                    onValueChange = onManualChange,
                     label = { Text("Leerlingnummer") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { submitManual() }),
+                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = { submitManual() }, enabled = manual.isNotBlank() && !state.submitting) {
+                Button(onClick = onSubmit, enabled = manual.isNotBlank() && !state.submitting) {
                     Text(if (tab == Tab.VERKOOP) "Opslaan" else "Controleren")
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (tab == Tab.VERKOOP) {
-                    Checkbox(checked = vm.introducee, onCheckedChange = { vm.introducee = it })
+                    Checkbox(checked = introducee, onCheckedChange = onIntroduceeChange)
                     Text(
                         "met introducee (geldt voor de volgende scan)",
                         style = MaterialTheme.typography.bodyMedium,
@@ -266,7 +309,7 @@ fun ScanScreen(vm: MainViewModel, tab: Tab) {
                 } else {
                     Spacer(Modifier.weight(1f))
                 }
-                IconButton(onClick = { cameraOn = !cameraOn }) {
+                IconButton(onClick = onToggleCamera) {
                     Icon(
                         if (cameraOn) Icons.Filled.Videocam else Icons.Filled.VideocamOff,
                         contentDescription = if (cameraOn) "Camera uit" else "Camera aan",
@@ -294,7 +337,7 @@ fun ScanScreen(vm: MainViewModel, tab: Tab) {
             rows = state.page?.rows ?: emptyList(),
             loading = state.loading,
             emptyText = "Nog niets",
-            onDelete = { vm.delete(tab, it) },
+            onDelete = onDelete,
             modifier = Modifier.weight(1f),
         )
     }
@@ -306,7 +349,29 @@ fun OverzichtScreen(vm: MainViewModel) {
     val state = vm.state(Tab.OVERZICHT)
     LaunchedEffect(Unit) { vm.load(Tab.OVERZICHT) }
     var query by rememberSaveable { mutableStateOf("") }
+    OverzichtContent(
+        state = state,
+        alphabetic = vm.alphabetic,
+        onAlphabeticChange = { vm.updateAlphabetic(it) },
+        showDeleted = vm.showDeleted,
+        onShowDeletedChange = { vm.updateShowDeleted(it) },
+        query = query,
+        onQueryChange = { query = it },
+        onDelete = { vm.delete(Tab.OVERZICHT, it) },
+    )
+}
 
+@Composable
+internal fun OverzichtContent(
+    state: ScreenState,
+    alphabetic: Boolean,
+    onAlphabeticChange: (Boolean) -> Unit,
+    showDeleted: Boolean,
+    onShowDeletedChange: (Boolean) -> Unit,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
     val rows = state.page?.rows ?: emptyList()
     val filtered = remember(rows, query) {
         val q = query.trim()
@@ -325,24 +390,24 @@ fun OverzichtScreen(vm: MainViewModel) {
             state.page?.counts?.let { CountsRow("Verkocht", it) }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
-                    selected = !vm.alphabetic,
-                    onClick = { vm.updateAlphabetic(false) },
+                    selected = !alphabetic,
+                    onClick = { onAlphabeticChange(false) },
                     label = { Text("Chronologisch") },
                 )
                 FilterChip(
-                    selected = vm.alphabetic,
-                    onClick = { vm.updateAlphabetic(true) },
+                    selected = alphabetic,
+                    onClick = { onAlphabeticChange(true) },
                     label = { Text("Alfabetisch") },
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(checked = vm.showDeleted, onCheckedChange = { vm.updateShowDeleted(it) })
+                Switch(checked = showDeleted, onCheckedChange = onShowDeletedChange)
                 Spacer(Modifier.width(8.dp))
                 Text("Toon verwijderd")
             }
             OutlinedTextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = onQueryChange,
                 label = { Text("Zoek op naam of nummer") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 singleLine = true,
@@ -357,7 +422,7 @@ fun OverzichtScreen(vm: MainViewModel) {
             rows = filtered,
             loading = state.loading,
             emptyText = if (query.isBlank()) "Geen kaartjes" else "Niets gevonden",
-            onDelete = { vm.delete(Tab.OVERZICHT, it) },
+            onDelete = onDelete,
             modifier = Modifier.weight(1f),
         )
     }
