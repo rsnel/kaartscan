@@ -46,6 +46,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // same key as release when available, so debug and release
+            // builds install over each other
+            signingConfigs.findByName("release")?.let { signingConfig = it }
+        }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = true
