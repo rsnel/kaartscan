@@ -289,7 +289,7 @@ internal fun ScanContent(
                     onValueChange = onManualChange,
                     label = { Text("Leerlingnummer") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { onSubmit() }),
                     modifier = Modifier.weight(1f),
                 )

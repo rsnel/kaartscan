@@ -195,7 +195,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!Barcodes.isValid(code)) {
             showResult(tab, Message(
                 "Barcode format fout",
-                "\"$code\" is geen leerlingnummer (minstens 6 cijfers) en geen introduceecode (*2023GALA123*)",
+                "\"$code\" is geen leerlingnummer (minstens 6 cijfers)",
                 true,
             ))
             return

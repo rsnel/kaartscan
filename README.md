@@ -27,9 +27,7 @@ The app is a client of the existing web application (source:
 Scanning is continuous (CameraX + ML Kit, bundled model, works offline). The same
 code is ignored for 4 seconds and scanning pauses briefly after each result, so a
 card held in front of the camera is submitted once. There is a torch button for dark
-venues. Gala introducee codes are Code 39 barcodes; the camera decoder drops the
-`*` start/stop characters that the hand scanner transmits, so the app adds them back
-(`2023GALA123` → `*2023GALA123*`).
+venues.
 
 The outcome of every write is read from the `$_SESSION['notice']` / `$_SESSION['err']`
 message on the page that follows it, just like the browser shows it, so validation

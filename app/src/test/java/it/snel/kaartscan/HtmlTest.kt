@@ -56,12 +56,12 @@ $msg
 <p>Barcode: <input id="barcode" type="text" name="barcode" value="">
 (<input type="checkbox" name="introducee" value="1"> introducee)
 <input type="submit" value="Opslaan">
-<p>De barcode moet een leerlingnummer zijn van minstens 6 cijfers of een gala introduceecode van de vorm *yyyyGALAnnn*, dus bijvoorbeeld "*2022GALA123*".
+<p>De barcode moet een leerlingnummer zijn van minstens 6 cijfers.
 </form>
 <h4>De nieuwste mutaties</h4>
 <table><tr><th>tijdstip</th><th>bron</th><th>doc</th><th>barcode</th><th>gast</th><th>introducee</th><th>status</th></tr>
 <tr><td>2026-10-24 20:01:02</td><td><i>NULL</i></td><td>r.snel</td><td><b>123456</b></td><td>Jan de Vries (6V2)</td><td>ja</td><td><a href="do_delete.php?kaartverkoop_id=42">verwijderen</a></td></tr>
-<tr><td>2026-10-24 19:58:00</td><td>web</td><td>r.snel/s.pieneman</td><td><b>*2026GALA007*</b></td><td>introducee van Piet  Jansen</td><td>nee</td><td>verwijderd door r.snel op 2026-10-24 20:00:00</td></tr>
+<tr><td>2026-10-24 19:58:00</td><td>web</td><td>r.snel/s.pieneman</td><td><b>207719</b></td><td>Piet  Jansen (5H1)</td><td>nee</td><td>verwijderd door r.snel op 2026-10-24 20:00:00</td></tr>
 </table>
 """,
         )
@@ -142,12 +142,9 @@ Login(*): <input type="text" id="login" name="username" value="">
     @Test
     fun barcodes() {
         assertEquals("123456", Barcodes.normalize(" ~123456\n"))
-        assertEquals("*2023GALA123*", Barcodes.normalize("2023GALA123"))
-        assertEquals("*2023GALA123*", Barcodes.normalize("*2023GALA123*"))
         assertTrue(Barcodes.isValid("123456"))
-        assertTrue(Barcodes.isValid("*2023GALA123*"))
         assertFalse(Barcodes.isValid("12345"))
-        assertFalse(Barcodes.isValid("2023GALA123"))
+        assertFalse(Barcodes.isValid("12345a"))
         assertFalse(Barcodes.isValid("abc123456"))
     }
 }
