@@ -114,16 +114,13 @@ fun MainScreen(vm: MainViewModel, user: String) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Vernieuwen")
                         }
                     }
-                    IconButton(onClick = { vm.logout() }) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Uitloggen")
-                    }
                 },
             )
         },
     ) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             when (tab) {
-                null -> StartScreen(onSelect = { tab = it })
+                null -> StartScreen(onSelect = { tab = it }, onLogout = { vm.logout() })
                 Tab.VERKOOP -> ScanScreen(vm, Tab.VERKOOP)
                 Tab.OVERZICHT -> OverzichtScreen(vm)
                 Tab.CONTROLE -> ScanScreen(vm, Tab.CONTROLE)
@@ -133,7 +130,7 @@ fun MainScreen(vm: MainViewModel, user: String) {
 }
 
 @Composable
-fun StartScreen(onSelect: (Tab) -> Unit) {
+fun StartScreen(onSelect: (Tab) -> Unit, onLogout: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
@@ -142,30 +139,33 @@ fun StartScreen(onSelect: (Tab) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         for (t in Tab.entries) {
-            ElevatedCard(
-                onClick = { onSelect(t) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 120.dp).padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        t.icon(),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(48.dp),
-                    )
-                    Spacer(Modifier.width(20.dp))
-                    Column {
-                        Text(t.label(), style = MaterialTheme.typography.headlineSmall)
-                        Text(
-                            t.description(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+            StartCard(t.icon(), t.label(), t.description()) { onSelect(t) }
+        }
+        StartCard(Icons.AutoMirrored.Filled.Logout, "Uitloggen", "Sessie beëindigen", onLogout)
+    }
+}
+
+@Composable
+private fun StartCard(icon: ImageVector, title: String, description: String, onClick: () -> Unit) {
+    ElevatedCard(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp)) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 120.dp).padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp),
+            )
+            Spacer(Modifier.width(20.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
