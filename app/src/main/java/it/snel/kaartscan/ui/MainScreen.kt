@@ -2,6 +2,7 @@ package it.snel.kaartscan.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -13,11 +14,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ConfirmationNumber
@@ -28,14 +34,13 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -63,9 +68,15 @@ import it.snel.kaartscan.Tab
 import kotlinx.coroutines.delay
 
 private fun Tab.label(): String = when (this) {
-    Tab.VERKOOP -> "Verkoop"
+    Tab.VERKOOP -> "Kaartverkoop"
     Tab.OVERZICHT -> "Overzicht"
-    Tab.CONTROLE -> "Controle"
+    Tab.CONTROLE -> "Kaartcontrole"
+}
+
+private fun Tab.description(): String = when (this) {
+    Tab.VERKOOP -> "Kaartjes verkopen: scan de leerlingpas"
+    Tab.OVERZICHT -> "Alle verkochte kaartjes en aantallen"
+    Tab.CONTROLE -> "Bij de deur: scan de leerlingpas"
 }
 
 private fun Tab.icon(): ImageVector = when (this) {
@@ -77,19 +88,31 @@ private fun Tab.icon(): ImageVector = when (this) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(vm: MainViewModel, user: String) {
-    var tab by rememberSaveable { mutableStateOf(Tab.VERKOOP) }
+    // null: the start screen
+    var tab by rememberSaveable { mutableStateOf<Tab?>(null) }
+    BackHandler(enabled = tab != null) { tab = null }
+
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    if (tab != null) {
+                        IconButton(onClick = { tab = null }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Terug")
+                        }
+                    }
+                },
                 title = {
                     Column {
-                        Text("Kaartscan OVC")
+                        Text(tab?.label() ?: "Kaartscan OVC")
                         Text(user, style = MaterialTheme.typography.labelMedium)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { vm.load(tab) }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Vernieuwen")
+                    tab?.let { t ->
+                        IconButton(onClick = { vm.load(t) }) {
+                            Icon(Icons.Filled.Refresh, contentDescription = "Vernieuwen")
+                        }
                     }
                     IconButton(onClick = { vm.logout() }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Uitloggen")
@@ -97,24 +120,52 @@ fun MainScreen(vm: MainViewModel, user: String) {
                 },
             )
         },
-        bottomBar = {
-            NavigationBar {
-                for (t in Tab.entries) {
-                    NavigationBarItem(
-                        selected = t == tab,
-                        onClick = { tab = t },
-                        icon = { Icon(t.icon(), contentDescription = null) },
-                        label = { Text(t.label()) },
-                    )
-                }
-            }
-        },
     ) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             when (tab) {
+                null -> StartScreen(onSelect = { tab = it })
                 Tab.VERKOOP -> ScanScreen(vm, Tab.VERKOOP)
                 Tab.OVERZICHT -> OverzichtScreen(vm)
                 Tab.CONTROLE -> ScanScreen(vm, Tab.CONTROLE)
+            }
+        }
+    }
+}
+
+@Composable
+fun StartScreen(onSelect: (Tab) -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        for (t in Tab.entries) {
+            ElevatedCard(
+                onClick = { onSelect(t) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 120.dp).padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        t.icon(),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(48.dp),
+                    )
+                    Spacer(Modifier.width(20.dp))
+                    Column {
+                        Text(t.label(), style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            t.description(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
     }

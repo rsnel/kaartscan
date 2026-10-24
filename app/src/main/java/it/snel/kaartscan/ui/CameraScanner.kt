@@ -2,6 +2,7 @@ package it.snel.kaartscan.ui
 
 import android.util.Log
 import android.util.Size
+import android.view.ViewOutlineProvider
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
@@ -37,6 +38,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -76,6 +78,10 @@ fun CameraScanner(
             scaleType = PreviewView.ScaleType.FILL_CENTER
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
             keepScreenOn = true
+            // FILL_CENTER scales the camera image beyond the view; clip it,
+            // otherwise it draws behind the controls below the scanner
+            clipToOutline = true
+            outlineProvider = ViewOutlineProvider.BOUNDS
         }
     }
 
@@ -141,8 +147,8 @@ fun CameraScanner(
         camera?.cameraControl?.enableTorch(torch)
     }
 
-    Box(modifier.background(Color.Black)) {
-        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+    Box(modifier.clipToBounds().background(Color.Black)) {
+        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize().clipToBounds())
         // aiming line
         Box(
             Modifier
