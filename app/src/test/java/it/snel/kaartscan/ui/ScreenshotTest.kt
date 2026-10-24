@@ -85,9 +85,9 @@ class ScreenshotTest {
 
     private val verkoopRows = listOf(
         row("2026-10-31 19:42:10", "213874", "Sanne Bakker (6V2)", true, 41),
-        row("2026-10-31 19:41:55", "209331", "Daan  Visser (5H1)", false, 40),
+        row("2026-10-31 19:41:55", "209331", "Daan Visser (5H1)", false, 40),
         row("2026-10-31 19:40:02", "211408", "Lotte van Dijk (6V1)", false, 39),
-        row("2026-10-31 19:38:47", "*2026GALA012*", "introducee van Emma  Smit", false, 38),
+        row("2026-10-31 19:38:47", "*2026GALA012*", "introducee van Emma Smit", false, 38),
     )
 
     @Composable

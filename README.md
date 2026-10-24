@@ -35,6 +35,10 @@ The outcome of every write is read from the `$_SESSION['notice']` / `$_SESSION['
 message on the page that follows it, just like the browser shows it, so validation
 rules and messages stay on the server.
 
+User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/kaartscan/),
+from `docs/`. The screenshots there are rendered by `ScreenshotTest` with example data
+and committed by CI on every push to `main`.
+
 ## Building
 
 Open in Android Studio, or `./gradlew assembleDebug`. GitHub Actions builds on every
