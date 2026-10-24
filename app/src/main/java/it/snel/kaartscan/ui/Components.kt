@@ -98,11 +98,16 @@ fun ResultBanner(msg: Message?, busy: Boolean, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CountsRow(label: String, counts: Counts, modifier: Modifier = Modifier) {
+fun CountsRow(label: String, counts: Counts, introduceeToegestaan: Boolean, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-        Stat(label, counts.total)
-        Stat("Leerlingen", counts.leerlingen)
-        Stat("Introducees", counts.introducees)
+        // a party without introducees (and none in the data): just the students
+        if (!introduceeToegestaan && counts.introducees == "0") {
+            Stat(label, counts.leerlingen)
+        } else {
+            Stat(label, counts.total)
+            Stat("Leerlingen", counts.leerlingen)
+            Stat("Introducees", counts.introducees)
+        }
     }
 }
 

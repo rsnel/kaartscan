@@ -249,6 +249,7 @@ class ScreenshotTest {
     fun overzicht() = shot("6-overzicht") {
         MainScaffold(Tab.OVERZICHT, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             OverzichtContent(
+                introduceeToegestaan = true,
                 state = ScreenState(
                     entries = verkoopRows + entry(37, "2021-04-16 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
                     aantallen = aantallen,

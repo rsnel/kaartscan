@@ -359,7 +359,7 @@ internal fun ScanContent(
                 }
             }
             if (tab == Tab.CONTROLE) {
-                state.aantallen?.let { CountsRow("Binnen", it.binnen) }
+                state.aantallen?.let { CountsRow("Binnen", it.binnen, introduceeToegestaan) }
             } else {
                 Text(
                     "De barcode moet een leerlingnummer zijn van minstens 6 cijfers.",
@@ -395,6 +395,7 @@ fun OverzichtScreen(vm: MainViewModel) {
     var query by rememberSaveable { mutableStateOf("") }
     OverzichtContent(
         state = state,
+        introduceeToegestaan = vm.me?.introduceeToegestaan ?: true,
         alphabetic = vm.alphabetic,
         onAlphabeticChange = { vm.updateAlphabetic(it) },
         showDeleted = vm.showDeleted,
@@ -408,6 +409,7 @@ fun OverzichtScreen(vm: MainViewModel) {
 @Composable
 internal fun OverzichtContent(
     state: ScreenState,
+    introduceeToegestaan: Boolean,
     alphabetic: Boolean,
     onAlphabeticChange: (Boolean) -> Unit,
     showDeleted: Boolean,
@@ -430,7 +432,7 @@ internal fun OverzichtContent(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            state.aantallen?.let { CountsRow("Verkocht", it.verkocht) }
+            state.aantallen?.let { CountsRow("Verkocht", it.verkocht, introduceeToegestaan) }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = !alphabetic,

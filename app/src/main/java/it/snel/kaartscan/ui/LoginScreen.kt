@@ -37,6 +37,12 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.ui.unit.dp
 import it.snel.kaartscan.MainViewModel
 
@@ -110,6 +116,7 @@ internal fun LoginContent(
     onLogin: () -> Unit,
     statusDot: @Composable () -> Unit = {},
 ) {
+    var showPassword by rememberSaveable { mutableStateOf(false) }
     Scaffold { pad ->
         Column(
             Modifier
@@ -142,8 +149,16 @@ internal fun LoginContent(
                 value = password,
                 onValueChange = onPasswordChange,
                 label = { Text("Wachtwoord") },
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (showPassword) "Wachtwoord verbergen" else "Wachtwoord tonen",
+                        )
+                    }
+                },
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { onLogin() }),
                 modifier = Modifier.fillMaxWidth(),
