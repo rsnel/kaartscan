@@ -37,5 +37,32 @@ rules and messages stay on the server.
 
 ## Building
 
-Open in Android Studio, or `./gradlew assembleDebug`. GitHub Actions builds a debug
-APK on every push (artifact *kaartscan-debug-apk* on the workflow run).
+Open in Android Studio, or `./gradlew assembleDebug`. GitHub Actions builds on every
+push; the APKs are artifacts on the workflow run (*kaartscan-debug-apk*,
+*kaartscan-release-apk*). The version code is the workflow run number, so each CI
+build installs over the previous one.
+
+### Release signing
+
+Release builds are signed with the key in `kaartscan-release.jks` (not in git).
+
+* **CI** takes it from four repository secrets: `KEYSTORE_BASE64` (the keystore,
+  base64 encoded), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. Without them
+  the release APK is built unsigned.
+* **Locally**, put `kaartscan-release.jks` and a `keystore.properties` in the project
+  root (both are gitignored):
+
+  ```
+  storeFile=kaartscan-release.jks
+  storePassword=...
+  keyAlias=kaartscan
+  keyPassword=...
+  ```
+
+  then `./gradlew assembleRelease`.
+
+To publish a release: `git tag v1.0 && git push origin v1.0`. CI attaches the signed
+`kaartscan-v1.0.apk` to a GitHub Release.
+
+Keep a backup of the keystore and its password: Android only installs an update that
+is signed with the same key.

@@ -1,8 +1,26 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Release signing: from environment variables (CI) or from keystore.properties
+// in the project root (local builds, never committed). Without either, the
+// release APK is built unsigned.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+fun signingValue(env: String, prop: String): String? =
+    System.getenv(env)?.takeIf { it.isNotEmpty() } ?: keystoreProperties.getProperty(prop)
+
+val releaseStoreFile = signingValue("KAARTSCAN_KEYSTORE_FILE", "storeFile")
+
+// CI builds get increasing version codes, so a newer APK installs over an older one
+val buildNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
 
 android {
     namespace = "it.snel.kaartscan"
@@ -12,12 +30,24 @@ android {
         applicationId = "it.snel.kaartscan"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = buildNumber
+        versionName = "1.0.$buildNumber"
+    }
+
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile)
+                storePassword = signingValue("KAARTSCAN_KEYSTORE_PASSWORD", "storePassword")
+                keyAlias = signingValue("KAARTSCAN_KEY_ALIAS", "keyAlias")
+                keyPassword = signingValue("KAARTSCAN_KEY_PASSWORD", "keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
