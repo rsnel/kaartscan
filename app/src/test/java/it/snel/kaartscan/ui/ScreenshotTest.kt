@@ -68,15 +68,15 @@ class ScreenshotTest {
     )
 
     private val verkoopRows = listOf(
-        entry(41, "2021-07-02 19:42:10", "213874", "Sanne Bakker (6V2)", true),
-        entry(40, "2021-07-02 19:41:55", "209331", "Daan Visser (5H1)", false),
-        entry(39, "2021-07-02 19:40:02", "211408", "Lotte van Dijk (6V1)", false),
-        entry(38, "2021-07-02 19:38:47", "210576", "Emma Smit (5H2)", true),
+        entry(41, "2021-04-16 19:42:10", "213874", "Sanne Bakker (6V2)", true),
+        entry(40, "2021-04-16 19:41:55", "209331", "Daan Visser (5H1)", false),
+        entry(39, "2021-04-16 19:40:02", "211408", "Lotte van Dijk (6V1)", false),
+        entry(38, "2021-04-16 19:38:47", "210576", "Emma Smit (5H2)", true),
     )
 
     private val controleRows = listOf(
-        entry(12, "2021-07-02 21:15:03", "213874", "Sanne Bakker (6V2)", true, bron = null),
-        entry(11, "2021-07-02 21:14:40", "211408", "Lotte van Dijk (6V1)", false, bron = null),
+        entry(12, "2021-04-16 21:15:03", "213874", "Sanne Bakker (6V2)", true, bron = null),
+        entry(11, "2021-04-16 21:14:40", "211408", "Lotte van Dijk (6V1)", false, bron = null),
     )
 
     private val aantallen = Aantallen(verkocht = Counts("143", "128", "15"), binnen = Counts("87", "79", "8"))
@@ -253,7 +253,7 @@ class ScreenshotTest {
         MainScaffold(Tab.OVERZICHT, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             OverzichtContent(
                 state = ScreenState(
-                    entries = verkoopRows + entry(37, "2021-07-02 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
+                    entries = verkoopRows + entry(37, "2021-04-16 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
                     aantallen = aantallen,
                     loaded = true,
                 ),
