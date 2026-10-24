@@ -35,6 +35,8 @@ data class Entry(
     /** "verwijderd door r.snel op 2026-10-31 19:31:00", null if not deleted */
     val verwijderd: String?,
     val deleteLink: String?,
+    /** kaartjes only: "binnen om 21:15:03 (door r.snel)", null if not (yet) inside */
+    val binnen: String? = null,
 )
 
 /** JSON from api.php; field names as in api.php. */
@@ -110,6 +112,10 @@ object Api {
             bron = str(o, "bron"),
             verwijderd = verwijderd,
             deleteLink = deleteLink,
+            binnen = o.optJSONObject("binnen")?.let { b ->
+                val t = str(b, "tijdstip") ?: "?"
+                "binnen om ${t.substringAfter(' ')} (door ${wie(b.optJSONObject("door"))})"
+            },
         )
     }
 

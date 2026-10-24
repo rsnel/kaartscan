@@ -16,7 +16,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-enum class Tab { VERKOOP, OVERZICHT, CONTROLE }
+/** Order of the start screen too: Overzicht is the third choice. */
+enum class Tab { VERKOOP, CONTROLE, OVERZICHT }
+
+/** Sort orders of Overzicht; [param] is api.php's order= value. */
+enum class OverzichtOrder(val param: String) { VERKOOPTIJD("chron"), AANKOMSTTIJD("aankomst"), ALFABETISCH("alph") }
 
 data class ScreenState(
     val entries: List<Entry> = emptyList(),
@@ -53,7 +57,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var introducee by mutableStateOf(false)
     var showDeleted by mutableStateOf(false)
         private set
-    var alphabetic by mutableStateOf(false)
+    var overzichtOrder by mutableStateOf(OverzichtOrder.VERKOOPTIJD)
         private set
 
     /** for the status dot; grey (UNKNOWN) is decided by the UI when not logged in */
@@ -205,7 +209,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val listing = when (tab) {
             Tab.VERKOOP -> client.kaartjes(limit = 10)
             Tab.CONTROLE -> client.controles()
-            Tab.OVERZICHT -> client.kaartjes(alphabetic, showDeleted)
+            Tab.OVERZICHT -> client.kaartjes(overzichtOrder.param, showDeleted)
         }
         // an api.php without counts in its lists: ask for them separately
         val aantallen = listing.aantallen ?: client.aantallen()
@@ -238,8 +242,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         load(Tab.OVERZICHT)
     }
 
-    fun updateAlphabetic(value: Boolean) {
-        alphabetic = value
+    fun updateOverzichtOrder(value: OverzichtOrder) {
+        overzichtOrder = value
         load(Tab.OVERZICHT)
     }
 

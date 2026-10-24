@@ -21,6 +21,7 @@ import it.snel.kaartscan.Counts
 import it.snel.kaartscan.Message
 import it.snel.kaartscan.Entry
 import it.snel.kaartscan.Me
+import it.snel.kaartscan.OverzichtOrder
 import it.snel.kaartscan.Aantallen
 import it.snel.kaartscan.ScreenState
 import it.snel.kaartscan.ServerSnapshot
@@ -253,12 +254,14 @@ class ScreenshotTest {
             OverzichtContent(
                 introduceeToegestaan = true,
                 state = ScreenState(
-                    entries = verkoopRows + entry(37, "2021-04-16 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
+                    entries = verkoopRows.mapIndexed { i, e ->
+                        if (i == 0 || i == 2) e.copy(binnen = "binnen om 21:1${4 + i / 2}:03 (door a.faber)") else e
+                    } + entry(37, "2021-04-16 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
                     aantallen = aantallen,
                     loaded = true,
                 ),
-                alphabetic = false,
-                onAlphabeticChange = {},
+                order = OverzichtOrder.VERKOOPTIJD,
+                onOrderChange = {},
                 showDeleted = true,
                 onShowDeletedChange = {},
                 query = "",

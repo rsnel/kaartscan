@@ -17,8 +17,8 @@ The app is a client of the existing web application (source:
   leerlingnummer), optionally tick *met introducee* first. Shows the server's
   success/error message in a big green/red banner with a beep and vibration, and the
   latest entries with *verwijderen* (`do_delete.php`).
-* **Overzicht** (`overzicht.php`): counts, chronological/alphabetical, show deleted,
-  plus local search by name or number.
+* **Overzicht** (`overzicht.php`): inside/sold counts; order by sale time, arrival
+  time or name; who is already inside (with arrival time); show deleted; local search.
 * **Controle** (`kaartcontrole.php` / `do_kaartcontrole.php`): scan at the door;
   shows *toegelaten MET/ZONDER introducee*, *al binnen* or *geen kaartje gekocht*,
   the number of people inside, and the latest entries

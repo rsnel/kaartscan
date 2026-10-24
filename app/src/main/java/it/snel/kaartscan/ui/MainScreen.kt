@@ -69,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import it.snel.kaartscan.MainViewModel
+import it.snel.kaartscan.OverzichtOrder
 import it.snel.kaartscan.Me
 import it.snel.kaartscan.ScreenState
 import it.snel.kaartscan.Tab
@@ -401,8 +402,8 @@ fun OverzichtScreen(vm: MainViewModel) {
     OverzichtContent(
         state = state,
         introduceeToegestaan = vm.me?.introduceeToegestaan ?: true,
-        alphabetic = vm.alphabetic,
-        onAlphabeticChange = { vm.updateAlphabetic(it) },
+        order = vm.overzichtOrder,
+        onOrderChange = { vm.updateOverzichtOrder(it) },
         showDeleted = vm.showDeleted,
         onShowDeletedChange = { vm.updateShowDeleted(it) },
         query = query,
@@ -415,8 +416,8 @@ fun OverzichtScreen(vm: MainViewModel) {
 internal fun OverzichtContent(
     state: ScreenState,
     introduceeToegestaan: Boolean,
-    alphabetic: Boolean,
-    onAlphabeticChange: (Boolean) -> Unit,
+    order: OverzichtOrder,
+    onOrderChange: (OverzichtOrder) -> Unit,
     showDeleted: Boolean,
     onShowDeletedChange: (Boolean) -> Unit,
     query: String,
@@ -437,18 +438,23 @@ internal fun OverzichtContent(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            state.aantallen?.let { CountsRow("Verkocht", it.verkocht, introduceeToegestaan) }
+            state.aantallen?.let { BinnenRow(it, introduceeToegestaan) }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = !alphabetic,
-                    onClick = { onAlphabeticChange(false) },
-                    label = { Text("Chronologisch") },
-                )
-                FilterChip(
-                    selected = alphabetic,
-                    onClick = { onAlphabeticChange(true) },
-                    label = { Text("Alfabetisch") },
-                )
+                for (o in OverzichtOrder.entries) {
+                    FilterChip(
+                        selected = order == o,
+                        onClick = { onOrderChange(o) },
+                        label = {
+                            Text(
+                                when (o) {
+                                    OverzichtOrder.VERKOOPTIJD -> "Verkooptijd"
+                                    OverzichtOrder.AANKOMSTTIJD -> "Aankomsttijd"
+                                    OverzichtOrder.ALFABETISCH -> "Alfabetisch"
+                                }
+                            )
+                        },
+                    )
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Switch(checked = showDeleted, onCheckedChange = onShowDeletedChange)

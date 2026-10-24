@@ -228,6 +228,9 @@ fun RowCard(row: Entry, onDeleteClick: () -> Unit) {
                     row.bron?.takeIf { it.isNotBlank() }?.let { "bron: $it" },
                 ).joinToString(" · ")
                 Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                row.binnen?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
+                }
                 row.verwijderd?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }

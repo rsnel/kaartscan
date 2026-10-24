@@ -48,7 +48,8 @@ class ApiTest {
               {"kaartverkoop_id": 38, "barcode": "213874",
                "gast": {"ppl_id": 10, "naam": "Sanne Bakker", "voornaam": "Sanne", "tussenvoegsel": "", "achternaam": "Bakker", "klas": "6V2"},
                "introducee": true, "bron": "scan", "tijdstip": "2026-10-31 19:42:10",
-               "door": {"username": "r.snel", "orig_username": "s.pieneman"}, "verwijderd": null},
+               "door": {"username": "r.snel", "orig_username": "s.pieneman"}, "verwijderd": null,
+               "binnen": {"kaartcontrole_id": 12, "tijdstip": "2026-10-31 21:15:03", "door": {"username": "a.faber", "orig_username": "a.faber"}}},
               {"kaartverkoop_id": 41, "barcode": "208120",
                "gast": {"ppl_id": 13, "naam": "Milan de Boer", "voornaam": "Milan", "tussenvoegsel": "de", "achternaam": "Boer", "klas": null},
                "introducee": false, "bron": null, "tijdstip": "2026-10-31 19:30:12",
@@ -67,11 +68,13 @@ class ApiTest {
         assertEquals("scan", sanne.bron)
         assertNull(sanne.verwijderd)
         assertEquals("${base}do_delete.php?kaartverkoop_id=38", sanne.deleteLink)
+        assertEquals("binnen om 21:15:03 (door a.faber)", sanne.binnen)
 
         assertEquals("Milan de Boer (KLAS?)", milan.gast)
         assertNull(milan.bron)
         assertEquals("verwijderd door a.faber op 2026-10-31 19:31:00", milan.verwijderd)
         assertNull(milan.deleteLink)
+        assertNull(milan.binnen)
 
         assertNull(onbekend.gast)
         assertEquals("0888049978040401221026", onbekend.barcode)

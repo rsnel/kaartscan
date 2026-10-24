@@ -133,8 +133,9 @@ class KaartscanClient(context: Context) {
 
     fun aantallen(): Aantallen = Api.aantallen(api("action=aantallen"))
 
-    fun kaartjes(alphabetic: Boolean = false, showDeleted: Boolean = false, limit: Int? = null): Listing {
-        val q = StringBuilder("action=kaartverkoop&order=").append(if (alphabetic) "alph" else "chron")
+    /** [order]: chron (sale time), aankomst (arrival time) or alph */
+    fun kaartjes(order: String = "chron", showDeleted: Boolean = false, limit: Int? = null): Listing {
+        val q = StringBuilder("action=kaartverkoop&order=").append(order)
         if (showDeleted) q.append("&verwijderd=1")
         if (limit != null) q.append("&limit=").append(limit)
         val o = api(q.toString())
