@@ -61,9 +61,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import it.snel.kaartscan.MainViewModel
+import it.snel.kaartscan.Me
 import it.snel.kaartscan.ScreenState
 import it.snel.kaartscan.Tab
 import kotlinx.coroutines.delay
@@ -87,12 +89,12 @@ private fun Tab.icon(): ImageVector = when (this) {
 }
 
 @Composable
-fun MainScreen(vm: MainViewModel, user: String) {
+fun MainScreen(vm: MainViewModel, me: Me) {
     // null: the start screen
     var tab by rememberSaveable { mutableStateOf<Tab?>(null) }
     BackHandler(enabled = tab != null) { tab = null }
 
-    MainScaffold(tab, user, onBack = { tab = null }, onRefresh = { t -> vm.load(t) }) {
+    MainScaffold(tab, me, onBack = { tab = null }, onRefresh = { t -> vm.load(t) }) {
         when (tab) {
             null -> StartScreen(onSelect = { tab = it }, onLogout = { vm.logout() })
             Tab.VERKOOP -> ScanScreen(vm, Tab.VERKOOP)
@@ -106,7 +108,7 @@ fun MainScreen(vm: MainViewModel, user: String) {
 @Composable
 internal fun MainScaffold(
     tab: Tab?,
-    user: String,
+    me: Me,
     onBack: () -> Unit,
     onRefresh: (Tab) -> Unit,
     content: @Composable () -> Unit,
@@ -124,7 +126,13 @@ internal fun MainScaffold(
                 title = {
                     Column {
                         Text(tab?.label() ?: "Kaartscan OVC")
-                        Text(user, style = MaterialTheme.typography.labelMedium)
+                        // the party on every screen, so nobody sells for the wrong one
+                        Text(
+                            listOfNotNull(me.feestNaam, me.username).joinToString(" · "),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 },
                 actions = {
@@ -231,6 +239,7 @@ fun ScanScreen(vm: MainViewModel, tab: Tab) {
         tab = tab,
         state = state,
         introducee = vm.introducee,
+        introduceeToegestaan = vm.me?.introduceeToegestaan ?: true,
         onIntroduceeChange = { vm.introducee = it },
         manual = manual,
         onManualChange = { manual = it },
@@ -264,6 +273,7 @@ internal fun ScanContent(
     tab: Tab,
     state: ScreenState,
     introducee: Boolean,
+    introduceeToegestaan: Boolean,
     onIntroduceeChange: (Boolean) -> Unit,
     manual: String,
     onManualChange: (String) -> Unit,
@@ -279,9 +289,6 @@ internal fun ScanContent(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            state.page?.heading?.let {
-                Text(it, style = MaterialTheme.typography.titleMedium)
-            }
             ResultBanner(state.result, state.submitting)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
@@ -299,7 +306,7 @@ internal fun ScanContent(
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (tab == Tab.VERKOOP) {
+                if (tab == Tab.VERKOOP && introduceeToegestaan) {
                     Checkbox(checked = introducee, onCheckedChange = onIntroduceeChange)
                     Text(
                         "met introducee (geldt voor de volgende scan)",
@@ -317,11 +324,13 @@ internal fun ScanContent(
                 }
             }
             if (tab == Tab.CONTROLE) {
-                state.page?.counts?.let { CountsRow("Binnen", it) }
+                state.aantallen?.let { CountsRow("Binnen", it.binnen) }
             } else {
-                state.page?.hint?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                Text(
+                    "De barcode moet een leerlingnummer zijn van minstens 6 cijfers.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             state.loadError?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -334,9 +343,9 @@ internal fun ScanContent(
             modifier = Modifier.padding(start = 12.dp, top = 8.dp),
         )
         RowList(
-            rows = state.page?.rows ?: emptyList(),
+            rows = state.entries,
             loading = state.loading,
-            emptyText = "Nog niets",
+            emptyText = if (state.loaded) "Nog niets" else "",
             onDelete = onDelete,
             modifier = Modifier.weight(1f),
         )
@@ -372,13 +381,12 @@ internal fun OverzichtContent(
     onQueryChange: (String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
-    val rows = state.page?.rows ?: emptyList()
+    val rows = state.entries
     val filtered = remember(rows, query) {
         val q = query.trim()
         if (q.isEmpty()) rows
         else rows.filter { r ->
-            r["gast"]?.text?.contains(q, ignoreCase = true) == true ||
-                r["barcode"]?.text?.contains(q, ignoreCase = true) == true
+            r.gast?.contains(q, ignoreCase = true) == true || r.barcode.contains(q, ignoreCase = true)
         }
     }
 
@@ -387,7 +395,7 @@ internal fun OverzichtContent(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            state.page?.counts?.let { CountsRow("Verkocht", it) }
+            state.aantallen?.let { CountsRow("Verkocht", it.verkocht) }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = !alphabetic,
@@ -421,7 +429,11 @@ internal fun OverzichtContent(
         RowList(
             rows = filtered,
             loading = state.loading,
-            emptyText = if (query.isBlank()) "Geen kaartjes" else "Niets gevonden",
+            emptyText = when {
+                !state.loaded -> ""
+                query.isBlank() -> "Geen kaartjes"
+                else -> "Niets gevonden"
+            },
             onDelete = onDelete,
             modifier = Modifier.weight(1f),
         )

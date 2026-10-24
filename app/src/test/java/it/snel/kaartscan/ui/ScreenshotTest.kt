@@ -17,11 +17,11 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
-import it.snel.kaartscan.Cell
 import it.snel.kaartscan.Counts
 import it.snel.kaartscan.Message
-import it.snel.kaartscan.Page
-import it.snel.kaartscan.Row
+import it.snel.kaartscan.Entry
+import it.snel.kaartscan.Me
+import it.snel.kaartscan.Aantallen
 import it.snel.kaartscan.ScreenState
 import it.snel.kaartscan.Tab
 import org.junit.Test
@@ -38,57 +38,46 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [34], qualifiers = RobolectricDeviceQualifiers.Pixel7)
 class ScreenshotTest {
     private val user = "j.devries"
+    private val me = Me(user, "Halloweenfeest 2026", introduceeToegestaan = true)
 
     private fun shot(name: String, content: @Composable () -> Unit) =
         captureRoboImage("../docs/screenshots/$name.png") {
             KaartscanTheme { content() }
         }
 
-    private fun row(
+    private fun entry(
+        id: Int,
         tijdstip: String,
         barcode: String,
         gast: String,
         introducee: Boolean,
-        id: Int,
         deletedBy: String? = null,
-        verkoop: Boolean = true,
-    ): Row {
-        val cells = linkedMapOf(
-            "tijdstip" to Cell(tijdstip, null),
-            "doc" to Cell(user, null),
-            "barcode" to Cell(barcode, null),
-            "gast" to Cell(gast, null),
-            "introducee" to Cell(if (introducee) "ja" else "nee", null),
-            "status" to if (deletedBy != null) Cell("verwijderd door $deletedBy op $tijdstip", null)
-            else Cell("verwijderen", "https://example.org/kaartscan/do_delete.php?kaartverkoop_id=$id"),
-        )
-        if (verkoop) cells["bron"] = Cell("scan", null)
-        return Row(cells)
-    }
-
-    private fun page(
-        heading: String?,
-        rows: List<Row>,
-        counts: Counts? = null,
-        hint: String? = null,
-    ) = Page(
-        isLoginPage = false,
-        heading = heading,
-        notice = null,
-        error = null,
-        loggedInAs = user,
-        counts = counts,
-        columns = emptyList(),
-        rows = rows,
-        hint = hint,
+        bron: String? = "scan",
+    ) = Entry(
+        id = id,
+        barcode = barcode,
+        gast = gast,
+        introducee = introducee,
+        tijdstip = tijdstip,
+        door = user,
+        bron = bron,
+        verwijderd = deletedBy?.let { "verwijderd door $it op $tijdstip" },
+        deleteLink = if (deletedBy == null) "https://example.org/kaartscan/do_delete.php?kaartverkoop_id=$id" else null,
     )
 
     private val verkoopRows = listOf(
-        row("2026-10-31 19:42:10", "213874", "Sanne Bakker (6V2)", true, 41),
-        row("2026-10-31 19:41:55", "209331", "Daan Visser (5H1)", false, 40),
-        row("2026-10-31 19:40:02", "211408", "Lotte van Dijk (6V1)", false, 39),
-        row("2026-10-31 19:38:47", "210576", "Emma Smit (5H2)", true, 38),
+        entry(41, "2026-10-31 19:42:10", "213874", "Sanne Bakker (6V2)", true),
+        entry(40, "2026-10-31 19:41:55", "209331", "Daan Visser (5H1)", false),
+        entry(39, "2026-10-31 19:40:02", "211408", "Lotte van Dijk (6V1)", false),
+        entry(38, "2026-10-31 19:38:47", "210576", "Emma Smit (5H2)", true),
     )
+
+    private val controleRows = listOf(
+        entry(12, "2026-10-31 21:15:03", "213874", "Sanne Bakker (6V2)", true, bron = null),
+        entry(11, "2026-10-31 21:14:40", "211408", "Lotte van Dijk (6V1)", false, bron = null),
+    )
+
+    private val aantallen = Aantallen(verkocht = Counts("143", "128", "15"), binnen = Counts("87", "79", "8"))
 
     @Composable
     private fun CameraIllustration() {
@@ -142,25 +131,23 @@ class ScreenshotTest {
 
     @Test
     fun start() = shot("2-start") {
-        MainScaffold(null, user, onBack = {}, onRefresh = {}) {
+        MainScaffold(null, me, onBack = {}, onRefresh = {}) {
             StartScreen(onSelect = {}, onLogout = {})
         }
     }
 
     @Test
     fun verkoop() = shot("3-verkoop") {
-        MainScaffold(Tab.VERKOOP, user, onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.VERKOOP, me, onBack = {}, onRefresh = {}) {
             ScanContent(
                 tab = Tab.VERKOOP,
                 state = ScreenState(
-                    page = page(
-                        "Kaartverkoop Halloweenfeest 2026",
-                        verkoopRows,
-                        hint = "De barcode moet een leerlingnummer zijn van minstens 6 cijfers.",
-                    ),
+                    entries = verkoopRows,
+                    loaded = true,
                     result = Message("Success", "Barcode 213874 stored in database", false),
                 ),
                 introducee = false,
+                introduceeToegestaan = true,
                 onIntroduceeChange = {},
                 manual = "",
                 onManualChange = {},
@@ -174,18 +161,13 @@ class ScreenshotTest {
 
     @Test
     fun controle() = shot("4-controle") {
-        MainScaffold(Tab.CONTROLE, user, onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.CONTROLE, me, onBack = {}, onRefresh = {}) {
             ScanContent(
                 tab = Tab.CONTROLE,
                 state = ScreenState(
-                    page = page(
-                        "Overzocht lln die binnen zijn",
-                        listOf(
-                            row("2026-10-31 21:15:03", "213874", "Sanne Bakker (6V2)", true, 12, verkoop = false),
-                            row("2026-10-31 21:14:40", "211408", "Lotte van Dijk (6V1)", false, 11, verkoop = false),
-                        ),
-                        counts = Counts("87", "79", "8"),
-                    ),
+                    entries = controleRows,
+                    aantallen = aantallen,
+                    loaded = true,
                     result = Message(
                         "Success",
                         "Barcode 213874 is toegelaten op het feest en ingeschreven als aanwezig MET introducee.",
@@ -193,6 +175,7 @@ class ScreenshotTest {
                     ),
                 ),
                 introducee = false,
+                introduceeToegestaan = true,
                 onIntroduceeChange = {},
                 manual = "",
                 onManualChange = {},
@@ -206,18 +189,17 @@ class ScreenshotTest {
 
     @Test
     fun controleFout() = shot("5-controle-fout") {
-        MainScaffold(Tab.CONTROLE, user, onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.CONTROLE, me, onBack = {}, onRefresh = {}) {
             ScanContent(
                 tab = Tab.CONTROLE,
                 state = ScreenState(
-                    page = page(
-                        "Overzocht lln die binnen zijn",
-                        listOf(row("2026-10-31 21:15:03", "213874", "Sanne Bakker (6V2)", true, 12, verkoop = false)),
-                        counts = Counts("87", "79", "8"),
-                    ),
+                    entries = controleRows.take(1),
+                    aantallen = aantallen,
+                    loaded = true,
                     result = Message("Dubbel", "Barcode 213874 is al binnen", true),
                 ),
                 introducee = false,
+                introduceeToegestaan = true,
                 onIntroduceeChange = {},
                 manual = "",
                 onManualChange = {},
@@ -231,14 +213,12 @@ class ScreenshotTest {
 
     @Test
     fun overzicht() = shot("6-overzicht") {
-        MainScaffold(Tab.OVERZICHT, user, onBack = {}, onRefresh = {}) {
+        MainScaffold(Tab.OVERZICHT, me, onBack = {}, onRefresh = {}) {
             OverzichtContent(
                 state = ScreenState(
-                    page = page(
-                        "Overzicht verkochte kaartjes",
-                        verkoopRows + row("2026-10-31 19:30:12", "208120", "Milan de Boer (5H2)", false, 37, deletedBy = user),
-                        counts = Counts("143", "128", "15"),
-                    ),
+                    entries = verkoopRows + entry(37, "2026-10-31 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
+                    aantallen = aantallen,
+                    loaded = true,
                 ),
                 alphabetic = false,
                 onAlphabeticChange = {},

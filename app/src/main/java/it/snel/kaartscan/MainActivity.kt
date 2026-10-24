@@ -24,6 +24,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun KaartscanApp(vm: MainViewModel = viewModel()) {
-    val user = vm.loggedInAs
-    if (user == null) LoginScreen(vm) else MainScreen(vm, user)
+    val me = vm.me
+    if (me == null) LoginScreen(vm) else MainScreen(vm, me)
 }

@@ -51,7 +51,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import it.snel.kaartscan.Counts
 import it.snel.kaartscan.Message
-import it.snel.kaartscan.Row as TableRow
+import it.snel.kaartscan.Entry
 
 /** Big coloured result of the last scan, readable at arm's length. */
 @Composable
@@ -114,16 +114,16 @@ private fun Stat(label: String, value: String) {
     }
 }
 
-/** List of table rows with a confirmation dialog for 'verwijderen'. */
+/** List of kaartjes or controles with a confirmation dialog for 'verwijderen'. */
 @Composable
 fun RowList(
-    rows: List<TableRow>,
+    rows: List<Entry>,
     loading: Boolean,
     emptyText: String,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var pending by remember { mutableStateOf<Pair<TableRow, String>?>(null) }
+    var pending by remember { mutableStateOf<Entry?>(null) }
     Box(modifier) {
         LazyColumn(
             contentPadding = PaddingValues(12.dp),
@@ -134,19 +134,19 @@ fun RowList(
                 item { Text(emptyText, style = MaterialTheme.typography.bodyMedium) }
             }
             items(rows) { row ->
-                RowCard(row, onDeleteClick = { link -> pending = row to link })
+                RowCard(row, onDeleteClick = { pending = row })
             }
         }
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
     }
-    pending?.let { (row, link) ->
+    pending?.let { row ->
         AlertDialog(
             onDismissRequest = { pending = null },
             title = { Text("Verwijderen?") },
-            text = { Text("${row["gast"]?.text.orEmpty()} (${row["barcode"]?.text.orEmpty()})") },
+            text = { Text("${row.gast ?: "onbekend"} (${row.barcode})") },
             confirmButton = {
                 TextButton(onClick = {
-                    onDelete(link)
+                    row.deleteLink?.let(onDelete)
                     pending = null
                 }) { Text("Verwijderen") }
             },
@@ -155,24 +155,20 @@ fun RowList(
     }
 }
 
-private val knownColumns = setOf("tijdstip", "bron", "doc", "barcode", "gast", "introducee", "status")
-
 @Composable
-fun RowCard(row: TableRow, onDeleteClick: (String) -> Unit) {
-    val status = row["status"]
-    val deleteLink = status?.link
-    val deleted = status != null && deleteLink == null && status.text.isNotBlank()
+fun RowCard(row: Entry, onDeleteClick: () -> Unit) {
+    val deleted = row.verwijderd != null
     ElevatedCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    row["gast"]?.text.orEmpty().ifBlank { "onbekend" },
+                    row.gast ?: "onbekend",
                     style = MaterialTheme.typography.titleMedium,
                     textDecoration = if (deleted) TextDecoration.LineThrough else null,
                 )
                 Row {
-                    Text(row["barcode"]?.text.orEmpty(), style = MaterialTheme.typography.bodyMedium)
-                    if (row["introducee"]?.text == "ja") {
+                    Text(row.barcode, style = MaterialTheme.typography.bodyMedium)
+                    if (row.introducee) {
                         Text(
                             "  + introducee",
                             style = MaterialTheme.typography.bodyMedium,
@@ -182,24 +178,17 @@ fun RowCard(row: TableRow, onDeleteClick: (String) -> Unit) {
                     }
                 }
                 val meta = listOfNotNull(
-                    row["tijdstip"]?.text?.takeIf { it.isNotBlank() },
-                    row["doc"]?.text?.takeIf { it.isNotBlank() }?.let { "door $it" },
-                    row["bron"]?.text?.takeIf { it.isNotBlank() }?.let { "bron: $it" },
+                    row.tijdstip.takeIf { it.isNotBlank() },
+                    "door ${row.door}",
+                    row.bron?.takeIf { it.isNotBlank() }?.let { "bron: $it" },
                 ).joinToString(" · ")
-                if (meta.isNotEmpty()) {
-                    Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (deleted) {
-                    Text(status!!.text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                }
-                for ((name, cell) in row.cells) {
-                    if (name !in knownColumns && cell.text.isNotBlank()) {
-                        Text("$name: ${cell.text}", style = MaterialTheme.typography.bodySmall)
-                    }
+                Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                row.verwijderd?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
             }
-            if (deleteLink != null) {
-                IconButton(onClick = { onDeleteClick(deleteLink) }) {
+            if (row.deleteLink != null) {
+                IconButton(onClick = onDeleteClick) {
                     Icon(Icons.Filled.Delete, contentDescription = "Verwijderen")
                 }
             }

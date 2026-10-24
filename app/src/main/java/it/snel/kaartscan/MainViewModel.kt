@@ -16,7 +16,10 @@ import java.io.IOException
 enum class Tab { VERKOOP, OVERZICHT, CONTROLE }
 
 data class ScreenState(
-    val page: Page? = null,
+    val entries: List<Entry> = emptyList(),
+    /** CONTROLE shows binnen, OVERZICHT shows verkocht */
+    val aantallen: Aantallen? = null,
+    val loaded: Boolean = false,
     val loading: Boolean = false,
     val submitting: Boolean = false,
     val result: Message? = null,
@@ -26,13 +29,16 @@ data class ScreenState(
     val loadError: String? = null,
 )
 
+private data class Loaded(val me: Me, val entries: List<Entry>, val aantallen: Aantallen?)
+
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val client = KaartscanClient(app)
 
-    var loggedInAs by mutableStateOf<String?>(null)
+    /** Logged in user and current party; null: show the login screen. */
+    var me by mutableStateOf<Me?>(null)
         private set
     /** A stored session that is still valid, offered on the login screen. */
-    var resumableUser by mutableStateOf<String?>(null)
+    var resumable by mutableStateOf<Me?>(null)
         private set
     var checkingSession by mutableStateOf(false)
         private set
@@ -61,7 +67,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (client.hasSession()) {
             checkingSession = true
             viewModelScope.launch {
-                resumableUser = try {
+                resumable = try {
                     io { client.checkSession() }
                 } catch (e: Exception) {
                     null
@@ -91,8 +97,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 client.baseUrl = server
                 val user = io { client.login(username.trim(), password) }
                 resetScreens()
-                resumableUser = null
-                loggedInAs = user
+                resumable = null
+                me = user
             } catch (e: LoginFailedException) {
                 loginError = e.message
             } catch (e: Exception) {
@@ -104,24 +110,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun resume() {
-        val user = resumableUser ?: return
+        val user = resumable ?: return
         resetScreens()
-        resumableUser = null
+        resumable = null
         loginError = null
-        loggedInAs = user
+        me = user
     }
 
     fun logout() {
-        loggedInAs = null
-        resumableUser = null
+        me = null
+        resumable = null
         loginError = null
         resetScreens()
         viewModelScope.launch { io { client.logout() } }
     }
 
     private fun sessionExpired(e: SessionExpiredException) {
-        loggedInAs = null
-        resumableUser = null
+        me = null
+        resumable = null
         loginError = "Sessie verlopen of geen toegang" + (e.message?.let { " ($it)" } ?: "") + ". Log opnieuw in."
     }
 
@@ -132,25 +138,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun failMessage(e: Exception): String = when (e) {
-        is ServerException -> e.message ?: "Serverfout"
+        is ServerException, is ApiException -> e.message ?: "Serverfout"
         is IOException -> "Netwerkfout: ${e.message ?: e.javaClass.simpleName}"
         else -> "Fout: ${e.message ?: e.javaClass.simpleName}"
     }
 
     // ---- reading ---------------------------------------------------------------
 
+    /** Also refreshes [me], so a change of party on the server shows up. */
+    private fun fetch(tab: Tab): Loaded {
+        val user = client.me()
+        return when (tab) {
+            // kaartverkoop.php shows the latest 10, kaartcontrole.php all of them
+            Tab.VERKOOP -> Loaded(user, client.kaartjes(limit = 10), null)
+            Tab.CONTROLE -> Loaded(user, client.controles(), client.aantallen())
+            Tab.OVERZICHT -> Loaded(user, client.kaartjes(alphabetic, showDeleted), client.aantallen())
+        }
+    }
+
+    private fun apply(tab: Tab, loaded: Loaded) {
+        me = loaded.me
+        if (!loaded.me.introduceeToegestaan) introducee = false
+        update(tab) { it.copy(entries = loaded.entries, aantallen = loaded.aantallen, loaded = true, loading = false) }
+    }
+
     fun load(tab: Tab) {
-        if (loggedInAs == null) return
+        if (me == null) return
         update(tab) { it.copy(loading = true, loadError = null) }
         viewModelScope.launch {
             try {
-                val page = io { fetch(tab) }
-                update(tab) { s ->
-                    // a page can carry a message left in the session by an earlier action
-                    val m = page.message
-                    if (m != null) s.copy(page = page, loading = false, result = m, resultSeq = s.resultSeq + 1)
-                    else s.copy(page = page, loading = false)
-                }
+                apply(tab, io { fetch(tab) })
             } catch (e: SessionExpiredException) {
                 update(tab) { it.copy(loading = false) }
                 sessionExpired(e)
@@ -158,12 +175,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 update(tab) { it.copy(loading = false, loadError = failMessage(e)) }
             }
         }
-    }
-
-    private fun fetch(tab: Tab): Page = when (tab) {
-        Tab.VERKOOP -> client.kaartverkoopPage()
-        Tab.OVERZICHT -> client.overzichtPage(showDeleted, alphabetic)
-        Tab.CONTROLE -> client.kaartcontrolePage()
     }
 
     fun updateShowDeleted(value: Boolean) {
@@ -193,25 +204,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val code = Barcodes.normalize(input)
         if (code.isEmpty() || state(tab).submitting) return
         if (!Barcodes.isValid(code)) {
-            showResult(tab, Message(
-                "Barcode format fout",
-                "\"$code\" is geen leerlingnummer (minstens 6 cijfers)",
-                true,
-            ))
+            showResult(tab, Message("Barcode format fout", "\"$code\" is geen leerlingnummer (minstens 6 cijfers)", true))
             return
         }
-        val withIntroducee = introducee
+        val withIntroducee = introducee && me?.introduceeToegestaan == true
         update(tab) { it.copy(submitting = true) }
         viewModelScope.launch {
             try {
-                val page = io {
+                val msg = io {
                     if (tab == Tab.VERKOOP) client.verkoop(code, withIntroducee) else client.controle(code)
-                }
-                val msg = page.message
-                    ?: Message("Onbekend", "Geen bevestiging van de server ontvangen voor $code, controleer de lijst", true)
+                } ?: Message("Onbekend", "Geen bevestiging van de server ontvangen voor $code, controleer de lijst", true)
                 if (tab == Tab.VERKOOP && !msg.isError) introducee = false
-                update(tab) { it.copy(page = page, submitting = false) }
+                update(tab) { it.copy(submitting = false) }
                 showResult(tab, msg)
+                load(tab)
             } catch (e: SessionExpiredException) {
                 update(tab) { it.copy(submitting = false) }
                 sessionExpired(e)

@@ -6,29 +6,32 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONException
+import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** The server showed its login page: no (valid) session, or the user is not an admin. */
+/** No (valid) session, or the user is not an admin. */
 class SessionExpiredException(message: String?) : IOException(message)
 
-/** Username/password rejected by do_login. */
+/** Username/password rejected by do_login, or not an admin. */
 class LoginFailedException(message: String) : IOException(message)
 
 /** error_system() output, an HTTP error, or something else unexpected. */
 class ServerException(message: String) : IOException(message)
 
+/** An error answer from api.php ({"error": ...} with status 400/500). */
+class ApiException(val code: Int, message: String) : IOException(message)
+
 /**
- * Talks to the kaartscan web application like a browser would: it logs in
- * with the 'oldstyle' form (call.php?action=do_login), keeps the PHP session
- * cookie, scrapes the pages and posts to the do_*.php scripts.
+ * Talks to the kaartscan web application: logs in with the 'oldstyle' form
+ * (call.php?action=do_login) and keeps the PHP session cookie, reads through
+ * api.php (JSON) and writes through the do_*.php scripts, like the website.
  *
- * The do_*.php scripts report their outcome through $_SESSION['notice'] or
- * $_SESSION['err'], which is shown (and consumed) by the next page that calls
- * html_start(). So every write is: POST without following the redirect, then
- * GET the page the redirect would have gone to and read the message there.
- * That also works when the redirect header itself fails because the script
- * produced output (print_r) before calling header().
+ * The do_*.php scripts report their outcome in $_SESSION['notice'] or
+ * $_SESSION['err']; api.php?action=melding returns and clears it. On a server
+ * whose api.php has no 'melding' yet, the message is read from the page the
+ * script redirects to instead.
  *
  * All methods block; call them from a background thread.
  */
@@ -42,6 +45,10 @@ class KaartscanClient(context: Context) {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS) // login waits for the auth server
         .build()
+
+    /** null: not tried yet */
+    @Volatile
+    private var meldingSupported: Boolean? = null
 
     var baseUrl: String
         get() = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
@@ -57,30 +64,28 @@ class KaartscanClient(context: Context) {
 
     fun hasSession(): Boolean = cookieJar.hasCookies()
 
-    // ---- high level operations -------------------------------------------------
+    // ---- session ---------------------------------------------------------------
 
-    /** Returns the username the server reports as logged in. */
-    fun login(username: String, password: String): String {
+    fun login(username: String, password: String): Me {
         cookieJar.clear()
+        meldingSupported = null
         lastUsername = username
         val r = post("call.php?action=do_login", listOf("username" to username, "password" to password))
-        if (r.code == 200 && isLoginPage(r.body)) {
-            // no redirect: show whatever the login page says
-            throw LoginFailedException(Html.parse(r.body, r.url.toString()).error?.toString() ?: "Inloggen mislukt")
+        if (r.code == 200 && Html.isLoginPage(r.body)) {
+            throw LoginFailedException(Html.parse(r.body).error?.toString() ?: "Inloggen mislukt")
         }
-        val page = try {
-            getPage("index.php")
+        try {
+            return me()
         } catch (e: SessionExpiredException) {
-            // do_login() and check_admin() report problems via error_user(),
-            // which ends up as an error message on the login page
-            throw LoginFailedException(e.message ?: "Inloggen mislukt")
+            // a 403 (not an admin) carries its reason; otherwise do_login()
+            // left the reason in the session, which only the login page shows
+            throw LoginFailedException(e.message ?: loginPageError() ?: "Inloggen mislukt")
         }
-        return page.loggedInAs ?: username
     }
 
-    /** Returns the logged in username if the stored session is still valid. */
-    fun checkSession(): String? = try {
-        getPage("index.php").loggedInAs ?: lastUsername
+    /** The stored session, if it is still valid. */
+    fun checkSession(): Me? = try {
+        me()
     } catch (e: SessionExpiredException) {
         cookieJar.clear()
         null
@@ -88,45 +93,75 @@ class KaartscanClient(context: Context) {
 
     fun logout() {
         try {
-            get(url("call.php?action=do_logout"), follow = false)
+            execute(Request.Builder().url(url("call.php?action=do_logout")).get().build())
         } catch (e: IOException) {
             // we forget the session anyway
         }
         cookieJar.clear()
     }
 
-    fun kaartverkoopPage(): Page = getPage("kaartverkoop.php")
-
-    fun kaartcontrolePage(): Page = getPage("kaartcontrole.php")
-
-    fun overzichtPage(showDeleted: Boolean, alphabetic: Boolean): Page {
-        val q = StringBuilder("overzicht.php?")
-        if (showDeleted) q.append("toon_verwijderd=on&")
-        q.append("order=").append(if (alphabetic) "alph" else "chron")
-        return getPage(q.toString())
+    private fun loginPageError(): String? = try {
+        Html.parse(get(url("index.php")).body).error?.toString()
+    } catch (e: IOException) {
+        null
     }
 
-    /** do_kaartverkoop.php; returns the refreshed kaartverkoop page with notice/err. */
-    fun verkoop(barcode: String, introducee: Boolean): Page {
+    // ---- reading: api.php ------------------------------------------------------
+
+    fun me(): Me = Api.me(api("action=whoami"))
+
+    fun aantallen(): Aantallen = Api.aantallen(api("action=aantallen"))
+
+    fun kaartjes(alphabetic: Boolean = false, showDeleted: Boolean = false, limit: Int? = null): List<Entry> {
+        val q = StringBuilder("action=kaartverkoop&order=").append(if (alphabetic) "alph" else "chron")
+        if (showDeleted) q.append("&verwijderd=1")
+        if (limit != null) q.append("&limit=").append(limit)
+        return Api.kaartjes(api(q.toString()), baseUrl)
+    }
+
+    fun controles(limit: Int? = null): List<Entry> =
+        Api.controles(api("action=kaartcontrole" + (limit?.let { "&limit=$it" } ?: "")), baseUrl)
+
+    // ---- writing: do_*.php -----------------------------------------------------
+
+    /** do_kaartverkoop.php; returns the server's message. */
+    fun verkoop(barcode: String, introducee: Boolean): Message? {
         val form = mutableListOf("barcode" to barcode)
         if (introducee) form.add("introducee" to "1")
         checkNotLoginPage(post("do_kaartverkoop.php", form))
-        return kaartverkoopPage()
+        return melding("kaartverkoop.php")
     }
 
-    /** do_kaartcontrole.php; returns the refreshed kaartcontrole page with notice/err. */
-    fun controle(barcode: String): Page {
+    /** do_kaartcontrole.php; returns the server's message. */
+    fun controle(barcode: String): Message? {
         checkNotLoginPage(post("do_kaartcontrole.php", listOf("barcode" to barcode)))
-        return kaartcontrolePage()
+        return melding("kaartcontrole.php")
     }
 
-    /** Follows a 'verwijderen' link (do_delete.php / do_delete_kaartcontrole.php). */
+    /** Follows a do_delete.php / do_delete_kaartcontrole.php link. */
     fun delete(link: String) {
         val target = link.toHttpUrlOrNull() ?: throw ServerException("Ongeldige link: $link")
         val base = url("")
         if (target.host != base.host || !target.encodedPath.startsWith(base.encodedPath))
             throw ServerException("Link wijst naar andere server: $link")
-        checkNotLoginPage(get(target, follow = false))
+        val r = check(execute(Request.Builder().url(target).get().build()))
+        checkNotLoginPage(r)
+    }
+
+    private fun melding(fallbackPage: String): Message? {
+        if (meldingSupported != false) {
+            try {
+                val m = Api.melding(api("action=melding"))
+                meldingSupported = true
+                return m
+            } catch (e: ApiException) {
+                if (e.code != 400) throw e
+                meldingSupported = false // older api.php: "onbekende action"
+            }
+        }
+        val page = Html.parse(get(url(fallbackPage)).body)
+        if (page.isLoginPage) throw SessionExpiredException(page.error?.toString())
+        return page.message
     }
 
     // ---- HTTP plumbing ---------------------------------------------------------
@@ -149,11 +184,38 @@ class KaartscanClient(context: Context) {
             Response(r.request.url, r.code, r.header("Content-Type"), r.header("Location"), r.body?.string() ?: "")
         }
 
-    private fun get(target: HttpUrl, follow: Boolean = true): Response {
+    /**
+     * GET api.php. With the phplib $json_api patch, errors come as JSON with
+     * 401/403/400/500; without it, a missing session shows the login page and
+     * a non-admin gets a redirect. Both are handled.
+     */
+    private fun api(query: String): JSONObject {
+        val r = execute(Request.Builder().url(url("api.php?$query")).get().build())
+        if (r.code in 300..399) throw SessionExpiredException(null)
+        if (r.contentType?.startsWith("application/json") != true) {
+            if (Html.isLoginPage(r.body)) throw SessionExpiredException(Html.parse(r.body).error?.toString())
+            check(r) // error_system() text, HTTP errors
+            throw ServerException("Onverwacht antwoord van api.php (HTTP ${r.code}). Staat api.php op de server?")
+        }
+        val o = try {
+            JSONObject(r.body)
+        } catch (e: JSONException) {
+            throw ServerException("Ongeldig antwoord van api.php")
+        }
+        val err = if (o.has("error")) o.optString("error") else null
+        return when {
+            r.code == 401 -> throw SessionExpiredException(null)
+            r.code == 403 -> throw SessionExpiredException(err ?: "Geen toegang")
+            r.code >= 400 -> throw ApiException(r.code, err ?: "HTTP ${r.code} van api.php")
+            else -> o
+        }
+    }
+
+    private fun get(target: HttpUrl): Response {
         var current = target
         repeat(10) {
             val r = execute(Request.Builder().url(current).get().build())
-            if (follow && r.code in 300..399) {
+            if (r.code in 300..399) {
                 val loc = r.location ?: throw ServerException("Redirect zonder Location-header")
                 current = current.resolve(loc) ?: throw ServerException("Ongeldige redirect: $loc")
                 return@repeat
@@ -178,18 +240,9 @@ class KaartscanClient(context: Context) {
         return r
     }
 
-    private fun isLoginPage(html: String): Boolean = html.contains("Loginpagina</title>")
-
     private fun checkNotLoginPage(r: Response) {
-        if (r.code == 200 && isLoginPage(r.body))
-            throw SessionExpiredException(Html.parse(r.body, r.url.toString()).error?.toString())
-    }
-
-    private fun getPage(path: String): Page {
-        val r = get(url(path))
-        val page = Html.parse(r.body, r.url.toString())
-        if (page.isLoginPage) throw SessionExpiredException(page.error?.toString())
-        return page
+        if (r.code == 200 && Html.isLoginPage(r.body))
+            throw SessionExpiredException(Html.parse(r.body).error?.toString())
     }
 
     companion object {

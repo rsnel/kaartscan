@@ -29,9 +29,13 @@ code is ignored for 4 seconds and scanning pauses briefly after each result, so 
 card held in front of the camera is submitted once. There is a torch button for dark
 venues.
 
-The outcome of every write is read from the `$_SESSION['notice']` / `$_SESSION['err']`
-message on the page that follows it, just like the browser shows it, so validation
-rules and messages stay on the server.
+Reading goes through `api.php` (JSON; `whoami`, `aantallen`, `kaartverkoop`,
+`kaartcontrole`, `melding`), writing through the same `do_*.php` scripts the website
+uses. Their outcome (`$_SESSION['notice']` / `$_SESSION['err']`) comes from
+`api.php?action=melding`, or from the redirected page on a server whose `api.php` does
+not have that action yet, so validation rules and messages stay on the server. The
+checkbox *met introducee* is only shown when `whoami` reports
+`introducee_toegestaan`.
 
 User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/kaartscan/),
 from `docs/`. The screenshots there are rendered by `ScreenshotTest` with example data

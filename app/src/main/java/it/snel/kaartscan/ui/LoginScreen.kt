@@ -62,7 +62,7 @@ fun LoginScreen(vm: MainViewModel) {
         busy = vm.loginBusy,
         canLogin = canLogin,
         onLogin = { doLogin() },
-        resumableUser = vm.resumableUser,
+        resumableUser = vm.resumable?.username,
         onResume = { vm.resume() },
         checkingSession = vm.checkingSession,
     )
