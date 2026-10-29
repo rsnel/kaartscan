@@ -61,6 +61,10 @@ class KaartscanClient(context: Context) {
             prefs.edit().putString(KEY_BASE_URL, v).apply()
         }
 
+    var scanSensitivity: ScanSensitivity
+        get() = ScanSensitivity.fromName(prefs.getString(KEY_SENSITIVITY, null))
+        set(value) = prefs.edit().putString(KEY_SENSITIVITY, value.name).apply()
+
     var lastUsername: String
         get() = prefs.getString(KEY_USERNAME, "") ?: ""
         set(value) = prefs.edit().putString(KEY_USERNAME, value).apply()
@@ -296,5 +300,6 @@ class KaartscanClient(context: Context) {
         const val DEFAULT_BASE_URL = "https://srv-ovc-linux.ovc.nl/kaartscan/"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_USERNAME = "username"
+        private const val KEY_SENSITIVITY = "scan_sensitivity"
     }
 }

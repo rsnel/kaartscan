@@ -23,6 +23,7 @@ import it.snel.kaartscan.Entry
 import it.snel.kaartscan.Me
 import it.snel.kaartscan.OverzichtOrder
 import it.snel.kaartscan.Aantallen
+import it.snel.kaartscan.ScanSensitivity
 import it.snel.kaartscan.ScreenState
 import it.snel.kaartscan.ServerSnapshot
 import it.snel.kaartscan.ServerStatus
@@ -128,9 +129,7 @@ class ScreenshotTest {
             password = "geheimwachtwoord",
             onPasswordChange = {},
             server = "https://srv-ovc-linux.ovc.nl/kaartscan/",
-            onServerChange = {},
-            editServer = false,
-            onEditServer = {},
+            onOpenSettings = {},
             error = null,
             busy = false,
             canLogin = true,
@@ -255,7 +254,10 @@ class ScreenshotTest {
                 introduceeToegestaan = true,
                 state = ScreenState(
                     entries = verkoopRows.mapIndexed { i, e ->
-                        if (i == 0 || i == 2) e.copy(binnen = "binnen om 21:1${4 + i / 2}:03 (door a.faber)") else e
+                        if (i == 0 || i == 2) e.copy(
+                            binnen = "binnen om 21:1${4 + i / 2}:03 (door a.faber)",
+                            exitLink = "https://example.org/kaartscan/do_delete_kaartcontrole.php?kaartcontrole_id=$i",
+                        ) else e
                     } + entry(37, "2021-04-16 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
                     aantallen = aantallen,
                     loaded = true,
@@ -269,5 +271,23 @@ class ScreenshotTest {
                 onDelete = {},
             )
         }
+    }
+
+    @Test
+    fun instellingen() = shot("7-instellingen") {
+        SettingsContent(
+            sensitivity = ScanSensitivity.NORMAAL,
+            onSensitivityChange = {},
+            loggedIn = true,
+            server = "https://srv-ovc-linux.ovc.nl/kaartscan/",
+            currentServer = "https://srv-ovc-linux.ovc.nl/kaartscan/",
+            onServerChange = {},
+            onSaveServer = {},
+            onDefaultServer = {},
+            serverError = null,
+            serverSaved = false,
+            version = "1.0.42",
+            onBack = {},
+        )
     }
 }

@@ -69,12 +69,14 @@ class ApiTest {
         assertNull(sanne.verwijderd)
         assertEquals("${base}do_delete.php?kaartverkoop_id=38", sanne.deleteLink)
         assertEquals("binnen om 21:15:03 (door a.faber)", sanne.binnen)
+        assertEquals("${base}do_delete_kaartcontrole.php?kaartcontrole_id=12", sanne.exitLink)
 
         assertEquals("Milan de Boer (KLAS?)", milan.gast)
         assertNull(milan.bron)
         assertEquals("verwijderd door a.faber op 2026-10-31 19:31:00", milan.verwijderd)
         assertNull(milan.deleteLink)
         assertNull(milan.binnen)
+        assertNull(milan.exitLink)
 
         assertNull(onbekend.gast)
         assertEquals("0888049978040401221026", onbekend.barcode)

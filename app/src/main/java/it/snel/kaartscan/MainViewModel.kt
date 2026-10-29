@@ -12,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -65,7 +66,37 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var checking by mutableStateOf(false)
         private set
 
-    val baseUrl: String get() = client.baseUrl
+    val baseUrl: String get() = serverUrl
+    /** api.php location; only changeable when logged out */
+    var serverUrl by mutableStateOf(client.baseUrl)
+        private set
+    var scanSensitivity by mutableStateOf(client.scanSensitivity)
+        private set
+    private val confirmer = ScanConfirmer()
+
+    fun updateScanSensitivity(value: ScanSensitivity) {
+        scanSensitivity = value
+        client.scanSensitivity = value
+        confirmer.reset()
+    }
+
+    /** Returns an error message, or null when the server address was changed. */
+    fun updateServer(url: String): String? {
+        if (me != null) return "Log eerst uit om de server te wijzigen"
+        var u = url.trim()
+        if (u.isEmpty()) u = KaartscanClient.DEFAULT_BASE_URL
+        if (!u.endsWith("/")) u += "/"
+        val parsed = u.toHttpUrlOrNull()
+        if (parsed == null || (parsed.scheme != "https" && parsed.scheme != "http"))
+            return "Geen geldig adres; het moet beginnen met https://"
+        if (u == client.baseUrl) return null
+        client.baseUrl = u
+        serverUrl = client.baseUrl
+        client.stats.reset()
+        loginError = null
+        pingServer()
+        return null
+    }
     val lastUsername: String get() = client.lastUsername
 
     private val screens: Map<Tab, MutableState<ScreenState>> =
@@ -149,13 +180,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- login -----------------------------------------------------------------
 
-    fun login(username: String, password: String, server: String) {
+    fun login(username: String, password: String) {
         if (loginBusy) return
         loginBusy = true
         loginError = null
         viewModelScope.launch {
             try {
-                client.baseUrl = server
                 val user = io { client.login(username.trim(), password) }
                 resetScreens()
                 me = user
@@ -253,6 +283,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun onScanned(tab: Tab, raw: String) {
         val code = Barcodes.normalize(raw)
         val now = SystemClock.elapsedRealtime()
+        val s = scanSensitivity
+        if (s.ignoreInvalid && !Barcodes.isValid(code)) return
+        // only a barcode read the same several times in a row counts
+        if (!confirmer.confirm(code, s.reads, now)) return
         if (code == lastScan && now - lastScanAt < SAME_CODE_IGNORE_MS) return
         if (state(tab).submitting) return
         lastScan = code

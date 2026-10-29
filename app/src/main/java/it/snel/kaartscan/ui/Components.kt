@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
@@ -168,7 +169,8 @@ fun RowList(
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var pending by remember { mutableStateOf<Entry?>(null) }
+    // (entry, true = check out / false = delete)
+    var pending by remember { mutableStateOf<Pair<Entry, Boolean>?>(null) }
     Box(modifier) {
         LazyColumn(
             contentPadding = PaddingValues(12.dp),
@@ -179,21 +181,31 @@ fun RowList(
                 item { Text(emptyText, style = MaterialTheme.typography.bodyMedium) }
             }
             items(rows) { row ->
-                RowCard(row, onDeleteClick = { pending = row })
+                RowCard(
+                    row,
+                    onDeleteClick = { pending = row to false },
+                    onExitClick = { pending = row to true },
+                )
             }
         }
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
     }
-    pending?.let { row ->
+    pending?.let { (row, exit) ->
+        val who = "${row.gast ?: "onbekend"} (${row.barcode})"
         AlertDialog(
             onDismissRequest = { pending = null },
-            title = { Text("Verwijderen?") },
-            text = { Text("${row.gast ?: "onbekend"} (${row.barcode})") },
+            title = { Text(if (exit) "Niet meer binnen?" else "Verwijderen?") },
+            text = {
+                Text(
+                    if (exit) "De aanwezigheid van $who wordt verwijderd. Het kaartje blijft bestaan."
+                    else who
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
-                    row.deleteLink?.let(onDelete)
+                    (if (exit) row.exitLink else row.deleteLink)?.let(onDelete)
                     pending = null
-                }) { Text("Verwijderen") }
+                }) { Text(if (exit) "Uitchecken" else "Verwijderen") }
             },
             dismissButton = { TextButton(onClick = { pending = null }) { Text("Annuleren") } },
         )
@@ -201,7 +213,7 @@ fun RowList(
 }
 
 @Composable
-fun RowCard(row: Entry, onDeleteClick: () -> Unit) {
+fun RowCard(row: Entry, onDeleteClick: () -> Unit, onExitClick: () -> Unit = {}) {
     val deleted = row.verwijderd != null
     ElevatedCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -235,8 +247,12 @@ fun RowCard(row: Entry, onDeleteClick: () -> Unit) {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
             }
-            if (row.deleteLink != null) {
-                IconButton(onClick = onDeleteClick) {
+            // someone who is inside is checked out first; only then can the sale go
+            when {
+                row.exitLink != null -> IconButton(onClick = onExitClick) {
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Uitchecken")
+                }
+                row.deleteLink != null -> IconButton(onClick = onDeleteClick) {
                     Icon(Icons.Filled.Delete, contentDescription = "Verwijderen")
                 }
             }

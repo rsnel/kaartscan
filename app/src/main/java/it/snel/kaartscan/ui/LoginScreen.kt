@@ -41,17 +41,16 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.unit.dp
 import it.snel.kaartscan.MainViewModel
 
 @Composable
-fun LoginScreen(vm: MainViewModel) {
+fun LoginScreen(vm: MainViewModel, onOpenSettings: () -> Unit) {
     var username by rememberSaveable { mutableStateOf(vm.lastUsername) }
     var password by remember { mutableStateOf("") }
-    var server by rememberSaveable { mutableStateOf(vm.baseUrl) }
-    var editServer by rememberSaveable { mutableStateOf(false) }
     val focus = LocalFocusManager.current
 
     // no session: check every 30 s whether the server is alive, for the dot
@@ -69,7 +68,7 @@ fun LoginScreen(vm: MainViewModel) {
     val doLogin = {
         if (canLogin) {
             focus.clearFocus()
-            vm.login(username, password, server)
+            vm.login(username, password)
         }
     }
 
@@ -78,10 +77,8 @@ fun LoginScreen(vm: MainViewModel) {
         onUsernameChange = { username = it },
         password = password,
         onPasswordChange = { password = it },
-        server = server,
-        onServerChange = { server = it },
-        editServer = editServer,
-        onEditServer = { editServer = true },
+        server = vm.serverUrl,
+        onOpenSettings = onOpenSettings,
         error = vm.loginError,
         busy = vm.loginBusy,
         canLogin = canLogin,
@@ -107,9 +104,7 @@ internal fun LoginContent(
     password: String,
     onPasswordChange: (String) -> Unit,
     server: String,
-    onServerChange: (String) -> Unit,
-    editServer: Boolean,
-    onEditServer: () -> Unit,
+    onOpenSettings: () -> Unit,
     error: String?,
     busy: Boolean,
     canLogin: Boolean,
@@ -130,6 +125,9 @@ internal fun LoginContent(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Kaartscan OVC", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
                 statusDot()
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Instellingen")
+                }
             }
             Text("Inloggen met lokaal wachtwoord", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -163,19 +161,8 @@ internal fun LoginContent(
                 keyboardActions = KeyboardActions(onDone = { onLogin() }),
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (editServer) {
-                OutlinedTextField(
-                    value = server,
-                    onValueChange = onServerChange,
-                    label = { Text("Server") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                TextButton(onClick = onEditServer) {
-                    Text("Server: $server", style = MaterialTheme.typography.bodySmall)
-                }
+            TextButton(onClick = onOpenSettings) {
+                Text("Server: $server", style = MaterialTheme.typography.bodySmall)
             }
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)

@@ -350,9 +350,11 @@ dialog.lightbox::backdrop { background: rgba(8, 12, 20, 0.92); backdrop-filter: 
         <ul>
           <li>Sorteer op <strong>verkooptijd</strong>, op <strong>aankomsttijd</strong> (wie het laatst binnenkwam bovenaan, wie nog niet binnen is onderaan) of <strong>alfabetisch</strong>.</li>
           <li>Zet verwijderde verkopen aan of uit, en zoek snel op naam of leerlingnummer.</li>
+          <li>Is iemand per ongeluk binnen gescand? Bij wie binnen is staat geen prullenbak maar een <strong>uitcheck-knop</strong>: die haalt de aanwezigheid weg en het kaartje blijft bestaan. Daarna verschijnt de prullenbak, als je ook de verkoop wilt verwijderen.</li>
         </ul>
       </div>
       <div class="shots">
+        <figure><div class="phone full"><img src="screenshots/7-instellingen.png" alt="Instellingen: gevoeligheid van de scanner en serveradres" width="1080" height="2400" loading="lazy"></div><figcaption>Instellingen</figcaption></figure>
         <figure><div class="phone full"><img src="screenshots/6-overzicht.png" alt="Overzicht van verkochte kaartjes" width="1080" height="2400" loading="lazy"></div><figcaption>Overzicht met zoekveld</figcaption></figure>
       </div>
     </div>
@@ -387,6 +389,7 @@ dialog.lightbox::backdrop { background: rgba(8, 12, 20, 0.92); backdrop-filter: 
     </div>
     <div class="tips">
       <div class="status-tip"><h3>De stip rechtsboven</h3><p>Die laat zien of de app de server bereikt. <span class="dot" style="--c: var(--ok)"></span>Groen: alles werkt. <span class="dot" style="--c: #f9a825"></span>Geel: de server gaf een onverwacht antwoord, kijk in de lijst of je scan is opgeslagen. <span class="dot" style="--c: var(--err)"></span>Rood: geen verbinding, controleer wifi of mobiele data. Ook op het inlogscherm zie je zo of de server bereikbaar is. Tik op de stip voor details, zoals de laatste keer contact en de laatste fout. De app controleert de verbinding elke halve minuut vanzelf.</p></div>
+      <div class="status-tip"><h3>Instellingen</h3><p>Via het tandwiel rechtsboven stel je in hoe streng de barcodescanner is. <strong>Tolerant</strong> neemt een barcode na één keer lezen, het snelst maar bij een slecht beeld soms een verkeerd nummer. <strong>Normaal</strong> wil hem twee keer achter elkaar hetzelfde lezen. <strong>Streng</strong> wil drie keer hetzelfde en negeert codes die geen leerlingnummer zijn. Ook het serveradres staat daar; dat kun je alleen wijzigen als je bent uitgelogd.</p></div>
       <div><h3>Donkere zaal</h3><p>Met het bliksemsymbool rechtsboven in het camerabeeld zet je de zaklamp aan.</p></div>
       <div><h3>Eén keer scannen is genoeg</h3><p>Dezelfde pas wordt een paar seconden genegeerd, en na elke melding wacht de scanner even. Een pas die blijft liggen telt dus niet dubbel.</p></div>
       <div><h3>Scherm blijft aan</h3><p>Zolang de camera open is gaat het scherm niet uit. Zet de camera uit met het camera-icoon als je alleen wilt typen.</p></div>

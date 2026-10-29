@@ -37,6 +37,8 @@ data class Entry(
     val deleteLink: String?,
     /** kaartjes only: "binnen om 21:15:03 (door r.snel)", null if not (yet) inside */
     val binnen: String? = null,
+    /** kaartjes only: do_delete_kaartcontrole.php link that undoes 'binnen' */
+    val exitLink: String? = null,
 )
 
 /** JSON from api.php; field names as in api.php. */
@@ -65,7 +67,10 @@ object Api {
     fun kaartjes(o: JSONObject, baseUrl: String): List<Entry> =
         entries(o.getJSONArray("kaartjes")) { k, deleted ->
             val id = k.getInt("kaartverkoop_id")
-            entry(k, id, if (deleted) null else "${baseUrl}do_delete.php?kaartverkoop_id=$id")
+            val binnenId = k.optJSONObject("binnen")?.optInt("kaartcontrole_id", 0)?.takeIf { it > 0 }
+            entry(k, id, if (deleted) null else "${baseUrl}do_delete.php?kaartverkoop_id=$id").copy(
+                exitLink = binnenId?.let { "${baseUrl}do_delete_kaartcontrole.php?kaartcontrole_id=$it" },
+            )
         }
 
     /** api.php?action=kaartcontrole */

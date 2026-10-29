@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.HowToReg
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material3.Button
@@ -94,10 +95,15 @@ private fun Tab.icon(): ImageVector = when (this) {
 }
 
 @Composable
-fun MainScreen(vm: MainViewModel, me: Me) {
-    // null: the start screen
-    var tab by rememberSaveable { mutableStateOf<Tab?>(null) }
-    BackHandler(enabled = tab != null) { tab = null }
+fun MainScreen(
+    vm: MainViewModel,
+    me: Me,
+    /** null: the start screen; kept by the caller so it survives a visit to the settings */
+    tab: Tab?,
+    onTabChange: (Tab?) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    BackHandler(enabled = tab != null) { onTabChange(null) }
 
     // check the server every 30 s while the app is on screen, so the status
     // dot turns red when the connection drops between scans
@@ -115,7 +121,8 @@ fun MainScreen(vm: MainViewModel, me: Me) {
 
     MainScaffold(
         tab, me,
-        onBack = { tab = null },
+        onBack = { onTabChange(null) },
+        onSettings = onOpenSettings,
         onRefresh = { t -> vm.load(t) },
         statusDot = {
             ServerStatusDot(
@@ -130,7 +137,7 @@ fun MainScreen(vm: MainViewModel, me: Me) {
         },
     ) {
         when (tab) {
-            null -> StartScreen(onSelect = { tab = it }, onLogout = { vm.logout() })
+            null -> StartScreen(onSelect = { onTabChange(it) }, onLogout = { vm.logout() })
             Tab.VERKOOP -> ScanScreen(vm, Tab.VERKOOP)
             Tab.OVERZICHT -> OverzichtScreen(vm)
             Tab.CONTROLE -> ScanScreen(vm, Tab.CONTROLE)
@@ -146,6 +153,7 @@ internal fun MainScaffold(
     onBack: () -> Unit,
     onRefresh: (Tab) -> Unit,
     statusDot: @Composable () -> Unit = {},
+    onSettings: () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     Scaffold(
@@ -176,6 +184,9 @@ internal fun MainScaffold(
                         IconButton(onClick = { onRefresh(tab) }) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Vernieuwen")
                         }
+                    }
+                    IconButton(onClick = onSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Instellingen")
                     }
                 },
             )
