@@ -13,22 +13,24 @@ class ApiTest {
 
     @Test
     fun whoami() {
+        // as the server sends it
         val me = Api.me(JSONObject("""
-            {"username": "r.snel", "orig_username": "r.snel", "type": "personeel", "ppl_id": 1, "admin": true,
-             "feest": {"feest_id": 8, "naam": "Halloweenfeest 2026"}, "introducee_toegestaan": false}
+            {"username": "r.snel", "orig_username": "r.snel", "type": "personeel", "ppl_id": 3490, "admin": true,
+             "feest": {"feest_id": 8, "naam": "Halloweenfeest 2026", "introducee_toegestaan": "0"}}
         """))
         assertEquals(Me("r.snel", "Halloweenfeest 2026", false), me)
     }
 
     @Test
-    fun whoamiIntroduceeInFeestOrMissing() {
-        val inFeest = Api.me(JSONObject("""{"username": "a", "feest": {"naam": "Gala", "introducee_toegestaan": 1}}"""))
-        assertTrue(inFeest.introduceeToegestaan)
-        val off = Api.me(JSONObject("""{"username": "a", "feest": {"naam": "Gala", "introducee_toegestaan": "0"}}"""))
-        assertFalse(off.introduceeToegestaan)
-        val missing = Api.me(JSONObject("""{"username": "a", "feest": {"naam": null}}"""))
-        assertTrue(missing.introduceeToegestaan)
-        assertNull(missing.feestNaam)
+    fun whoamiIntroduceeToegestaan() {
+        for (v in listOf("\"1\"", "1", "true")) {
+            val me = Api.me(JSONObject("""{"username": "a", "feest": {"naam": "Gala", "introducee_toegestaan": $v}}"""))
+            assertTrue(v, me.introduceeToegestaan)
+        }
+        for (v in listOf("\"0\"", "0", "false")) {
+            val me = Api.me(JSONObject("""{"username": "a", "feest": {"naam": "Gala", "introducee_toegestaan": $v}}"""))
+            assertFalse(v, me.introduceeToegestaan)
+        }
     }
 
     @Test

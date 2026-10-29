@@ -20,7 +20,7 @@ User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/
 * **Start screen** with Kaartverkoop, Kaartcontrole, Overzicht and Uitloggen. The top
   bar of every screen shows the party (from `whoami`) and the logged in user.
 * **Kaartverkoop**: scan a card or type the leerlingnummer, optionally tick
-  *met introducee* first (only shown when `whoami` reports `introducee_toegestaan`;
+  *met introducee* first (only shown when `whoami` reports `feest.introducee_toegestaan`;
   it resets after a successful sale). Shows the sold counts and the latest 10 sales.
 * **Kaartcontrole**: scan at the door. Shows *toegelaten MET/ZONDER introducee*,
   *al binnen* or *geen kaartje gekocht*, the counts as inside / sold per category,
@@ -99,10 +99,12 @@ Errors look like `{"error": "…", "title": "…"}`. All answers are
 {
   "username": "r.snel", "orig_username": "r.snel", "type": "personeel",
   "ppl_id": 1, "admin": true,
-  "feest": {"feest_id": 8, "naam": "Examengala 2021"},
-  "introducee_toegestaan": true
+  "feest": {"feest_id": 8, "naam": "Examengala 2021", "introducee_toegestaan": "1"}
 }
 ```
+
+`feest.introducee_toegestaan` is `"0"` or `"1"` (as it comes from the database); the
+app also accepts `0`/`1` and `false`/`true`.
 
 **`?action=aantallen`**: sold and inside, each split up. Deleted sales and check-ins
 are not counted; a barcode that is no known student counts as sold but not as a

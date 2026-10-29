@@ -44,16 +44,12 @@ data class Entry(
 /** JSON from api.php; field names as in api.php. */
 object Api {
     fun me(o: JSONObject): Me {
-        val feest = o.optJSONObject("feest")
-        val toegestaan = when {
-            o.has("introducee_toegestaan") -> bool(o, "introducee_toegestaan")
-            feest != null && feest.has("introducee_toegestaan") -> bool(feest, "introducee_toegestaan")
-            else -> true
-        }
+        val feest = o.getJSONObject("feest")
         return Me(
             username = o.getString("username"),
-            feestNaam = feest?.let { str(it, "naam") },
-            introduceeToegestaan = toegestaan,
+            feestNaam = str(feest, "naam"),
+            // comes from the database as "0" / "1"
+            introduceeToegestaan = bool(feest, "introducee_toegestaan"),
         )
     }
 
