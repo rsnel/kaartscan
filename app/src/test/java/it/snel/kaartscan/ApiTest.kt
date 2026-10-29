@@ -105,7 +105,6 @@ class ApiTest {
              "controles": []}
         """)
         assertEquals(Aantallen(Counts("4", "3", "1"), Counts("3", "2", "1")), Api.aantallenIn(o))
-        assertNull(Api.aantallenIn(JSONObject("""{"controles": []}""")))
     }
 
     @Test

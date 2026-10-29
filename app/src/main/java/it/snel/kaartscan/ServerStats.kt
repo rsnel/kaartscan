@@ -27,10 +27,6 @@ data class ServerSnapshot(
     val downCount: Int = 0,
     val lastProblem: String? = null,
     val lastProblemAt: Long? = null,
-    /** true: api.php has action=melding, false: messages come from the page, null: not known yet */
-    val meldingApi: Boolean? = null,
-    /** true: phplib answers api.php with JSON errors ($json_api patch), null: not seen yet */
-    val jsonErrors: Boolean? = null,
 )
 
 /**
@@ -83,8 +79,4 @@ class ServerStats {
             lastProblemAt = System.currentTimeMillis(),
         )
     }
-
-    fun meldingApi(supported: Boolean) = _snapshot.update { it.copy(meldingApi = supported) }
-
-    fun jsonErrors(seen: Boolean) = _snapshot.update { it.copy(jsonErrors = seen) }
 }

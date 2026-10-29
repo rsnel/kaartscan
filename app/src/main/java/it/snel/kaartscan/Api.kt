@@ -16,8 +16,8 @@ data class Counts(val total: String, val leerlingen: String, val introducees: St
 /** api.php?action=aantallen */
 data class Aantallen(val verkocht: Counts, val binnen: Counts)
 
-/** A list from api.php, with the counts newer versions send along (null: older api.php). */
-data class Listing(val entries: List<Entry>, val aantallen: Aantallen?)
+/** A list from api.php with the counts it sends along. */
+data class Listing(val entries: List<Entry>, val aantallen: Aantallen)
 
 /**
  * One kaartje (kaartverkoop) or one kaartcontrole, as shown in the lists.
@@ -60,8 +60,8 @@ object Api {
     fun aantallen(o: JSONObject): Aantallen =
         Aantallen(counts(o.getJSONObject("verkocht")), counts(o.getJSONObject("binnen")))
 
-    /** the 'aantallen' that kaartverkoop and kaartcontrole include; null from an older api.php */
-    fun aantallenIn(o: JSONObject): Aantallen? = o.optJSONObject("aantallen")?.let { aantallen(it) }
+    /** the 'aantallen' that kaartverkoop and kaartcontrole include */
+    fun aantallenIn(o: JSONObject): Aantallen = aantallen(o.getJSONObject("aantallen"))
 
     /** api.php?action=kaartverkoop; [baseUrl] ends with '/' */
     fun kaartjes(o: JSONObject, baseUrl: String): List<Entry> =

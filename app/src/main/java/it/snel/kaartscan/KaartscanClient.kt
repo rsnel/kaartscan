@@ -11,7 +11,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** No (valid) session, or the user is not an admin. */
+/** No (valid) session (api.php 401), or the user is not an admin (403). */
 class SessionExpiredException(message: String?) : IOException(message)
 
 /** Username/password rejected by do_login, or not an admin. */
@@ -20,7 +20,7 @@ class LoginFailedException(message: String) : IOException(message)
 /** error_system() output, an HTTP error, or something else unexpected. */
 class ServerException(message: String) : IOException(message)
 
-/** An error answer from api.php ({"error": ...} with status 400/500). */
+/** An error answer from api.php ({"error": ...} with status 400). */
 class ApiException(val code: Int, message: String) : IOException(message)
 
 /**
@@ -29,9 +29,9 @@ class ApiException(val code: Int, message: String) : IOException(message)
  * api.php (JSON) and writes through the do_*.php scripts, like the website.
  *
  * The do_*.php scripts report their outcome in $_SESSION['notice'] or
- * $_SESSION['err']; api.php?action=melding returns and clears it. On a server
- * whose api.php has no 'melding' yet, the message is read from the page the
- * script redirects to instead.
+ * $_SESSION['err']; api.php?action=melding returns and clears it. api.php
+ * relies on phplib's $json_api: without a session it answers 401, for a
+ * non-admin 403, both as JSON.
  *
  * All methods block; call them from a background thread.
  */
@@ -45,10 +45,6 @@ class KaartscanClient(context: Context) {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS) // login waits for the auth server
         .build()
-
-    /** null: not tried yet */
-    @Volatile
-    private var meldingSupported: Boolean? = null
 
     /** outcome of every request, for the status dot */
     val stats = ServerStats()
@@ -75,13 +71,10 @@ class KaartscanClient(context: Context) {
 
     fun login(username: String, password: String): Me {
         cookieJar.clear()
-        meldingSupported = null
         stats.reset()
         lastUsername = username
-        val r = post("call.php?action=do_login", listOf("username" to username, "password" to password))
-        if (r.code == 200 && Html.isLoginPage(r.body)) {
-            throw LoginFailedException(Html.parse(r.body).error?.toString() ?: "Inloggen mislukt")
-        }
+        // do_login() always redirects; whether it worked shows in whoami
+        post("call.php?action=do_login", listOf("username" to username, "password" to password))
         try {
             return me()
         } catch (e: SessionExpiredException) {
@@ -110,21 +103,20 @@ class KaartscanClient(context: Context) {
 
     /**
      * Is the server alive? For the status dot when there is no session:
-     * api.php without a session answers 401 JSON (phplib $json_api patch,
-     * logs nothing) or the login page; both mean the server works. The
-     * outcome only goes to [stats].
+     * api.php answers 401 JSON without logging anything, which means the
+     * server works. The outcome only goes to [stats].
      */
     fun ping() {
         try {
             val r = execute(Request.Builder().url(url("api.php?action=whoami")).get().build())
-            val json = r.contentType?.startsWith("application/json") == true
-            if (r.code < 500 && !json && !Html.isLoginPage(r.body))
+            if (r.code < 500 && r.contentType?.startsWith("application/json") != true)
                 stats.unexpected("Onverwacht antwoord van api.php (HTTP ${r.code})")
         } catch (e: IOException) {
             // counted in stats by execute()
         }
     }
 
+    /** why do_login() refused: error_user() put it in the session, only the login page shows it */
     private fun loginPageError(): String? = try {
         Html.parse(get(url("index.php")).body).error?.toString()
     } catch (e: IOException) {
@@ -134,8 +126,6 @@ class KaartscanClient(context: Context) {
     // ---- reading: api.php ------------------------------------------------------
 
     fun me(): Me = Api.me(api("action=whoami"))
-
-    fun aantallen(): Aantallen = Api.aantallen(api("action=aantallen"))
 
     /** [order]: chron (sale time), aankomst (arrival time) or alph */
     fun kaartjes(order: String = "chron", showDeleted: Boolean = false, limit: Int? = null): Listing {
@@ -158,13 +148,13 @@ class KaartscanClient(context: Context) {
         val form = mutableListOf("barcode" to barcode)
         if (introducee) form.add("introducee" to "1")
         checkNotLoginPage(post("do_kaartverkoop.php", form))
-        return melding("kaartverkoop.php")
+        return melding()
     }
 
     /** do_kaartcontrole.php; returns the server's message. */
     fun controle(barcode: String): Message? {
         checkNotLoginPage(post("do_kaartcontrole.php", listOf("barcode" to barcode)))
-        return melding("kaartcontrole.php")
+        return melding()
     }
 
     /** Follows a do_delete.php / do_delete_kaartcontrole.php link. */
@@ -177,23 +167,7 @@ class KaartscanClient(context: Context) {
         checkNotLoginPage(r)
     }
 
-    private fun melding(fallbackPage: String): Message? {
-        if (meldingSupported != false) {
-            try {
-                val m = Api.melding(api("action=melding"))
-                meldingSupported = true
-                stats.meldingApi(true)
-                return m
-            } catch (e: ApiException) {
-                if (e.code != 400) throw e
-                meldingSupported = false // older api.php: "onbekende action"
-                stats.meldingApi(false)
-            }
-        }
-        val page = Html.parse(get(url(fallbackPage)).body)
-        if (page.isLoginPage) throw SessionExpiredException(page.error?.toString())
-        return page.message
-    }
+    private fun melding(): Message? = Api.melding(api("action=melding"))
 
     // ---- HTTP plumbing ---------------------------------------------------------
 
@@ -231,21 +205,12 @@ class KaartscanClient(context: Context) {
         return ServerException(message)
     }
 
-    /**
-     * GET api.php. With the phplib $json_api patch, errors come as JSON with
-     * 401/403/400/500; without it, a missing session shows the login page and
-     * a non-admin gets a redirect. Both are handled.
-     */
+    /** GET api.php: JSON, errors as {"error": ...} with 401/403/400/500 */
     private fun api(query: String): JSONObject {
         val r = execute(Request.Builder().url(url("api.php?$query")).get().build())
-        if (r.code in 300..399) throw SessionExpiredException(null)
         if (r.contentType?.startsWith("application/json") != true) {
-            if (Html.isLoginPage(r.body)) {
-                stats.jsonErrors(false)
-                throw SessionExpiredException(Html.parse(r.body).error?.toString())
-            }
-            check(r) // error_system() text, HTTP errors
-            throw unexpected("Onverwacht antwoord van api.php (HTTP ${r.code}). Staat api.php op de server?")
+            check(r) // HTTP errors
+            throw unexpected("Onverwacht antwoord van api.php (HTTP ${r.code})", alreadyCounted = r.code >= 500)
         }
         val o = try {
             JSONObject(r.body)
@@ -253,10 +218,10 @@ class KaartscanClient(context: Context) {
             throw unexpected("Ongeldig antwoord van api.php", alreadyCounted = r.code >= 500)
         }
         val err = if (o.has("error")) o.optString("error") else null
-        if (r.code == 401 || r.code == 403) stats.jsonErrors(true)
         return when {
             r.code == 401 -> throw SessionExpiredException(null)
             r.code == 403 -> throw SessionExpiredException(err ?: "Geen toegang")
+            r.code >= 500 -> throw unexpected(err ?: "HTTP ${r.code} van api.php", alreadyCounted = true)
             r.code >= 400 -> throw ApiException(r.code, err ?: "HTTP ${r.code} van api.php")
             else -> o
         }
@@ -291,6 +256,7 @@ class KaartscanClient(context: Context) {
         return r
     }
 
+    /** do_*.php have no $json_api: without a session they show the login page */
     private fun checkNotLoginPage(r: Response) {
         if (r.code == 200 && Html.isLoginPage(r.body))
             throw SessionExpiredException(Html.parse(r.body).error?.toString())

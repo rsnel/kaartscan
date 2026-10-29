@@ -14,8 +14,8 @@ data class Page(val isLoginPage: Boolean, val notice: Message?, val error: Messa
 
 /**
  * Reads the messages html_start() shows ($_SESSION['notice'] / ['err']).
- * Needed for the reason a login failed (only the login page shows it) and
- * as fallback when api.php has no 'melding' action yet.
+ * Only for logging in: why do_login() refused is shown on the login page,
+ * and the do_*.php scripts show that page when the session is gone.
  */
 object Html {
     fun parse(html: String): Page {

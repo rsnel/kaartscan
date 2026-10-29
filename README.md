@@ -4,44 +4,192 @@ Android app for [Kaartscan OVC](https://srv-ovc-linux.ovc.nl/kaartscan/): sell a
 check party tickets by scanning the barcode on the student card with the phone's
 camera, instead of a laptop with a separate barcode scanner.
 
-The app is a client of the existing web application (source:
-`https://snel.it/svn/misc/trunk/kaartscan/`); nothing changes on the server.
+The app is a client of the existing PHP web application (source:
+`https://snel.it/svn/misc/trunk/kaartscan/`). It reads through `api.php` (JSON) and
+writes through the same `do_*.php` scripts the website uses, so validation rules and
+messages stay on the server.
 
-## What it does
+User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/kaartscan/).
+
+## The app
 
 * **Login** with the 'oldstyle' username/password form (`call.php?action=do_login`).
-  The PHP session cookie (`kaartscan`) is stored; if a stored session is still valid
-  the login screen offers to continue with it. Only users in `$admins` get in,
-  exactly as on the website.
-* **Verkoop** (`kaartverkoop.php` / `do_kaartverkoop.php`): scan a card (or type the
-  leerlingnummer), optionally tick *met introducee* first. Shows the server's
-  success/error message in a big green/red banner with a beep and vibration, and the
-  latest entries with *verwijderen* (`do_delete.php`).
-* **Overzicht** (`overzicht.php`): inside/sold counts; order by sale time, arrival
-  time or name; who is already inside (with arrival time); show deleted; local search.
-* **Controle** (`kaartcontrole.php` / `do_kaartcontrole.php`): scan at the door;
-  shows *toegelaten MET/ZONDER introducee*, *al binnen* or *geen kaartje gekocht*,
-  the number of people inside, and the latest entries
-  (`do_delete_kaartcontrole.php`).
+  The PHP session cookie (`kaartscan`) is kept in the app's storage; at startup a
+  still valid session skips the login screen. Only users in `$admins` get in, exactly
+  as on the website. The password field has a show/hide button.
+* **Start screen** with Kaartverkoop, Kaartcontrole, Overzicht and Uitloggen. The top
+  bar of every screen shows the party (from `whoami`) and the logged in user.
+* **Kaartverkoop**: scan a card or type the leerlingnummer, optionally tick
+  *met introducee* first (only shown when `whoami` reports `introducee_toegestaan`;
+  it resets after a successful sale). Shows the sold counts and the latest 10 sales.
+* **Kaartcontrole**: scan at the door. Shows *toegelaten MET/ZONDER introducee*,
+  *al binnen* or *geen kaartje gekocht*, the counts as inside / sold per category,
+  and the check-ins (with delete).
+* **Overzicht**: all sales with inside / sold counts; order by sale time, arrival
+  time or name; who is inside, with arrival time; show deleted; local search on name
+  or number. Someone who is inside has a check-out button (deletes the
+  kaartcontrole); only after that the bin to delete the sale appears.
+* **Counts**: total, students, introducees. For a party without introducees (and
+  none in the data) only the number of students is shown.
+* **Result banner**: the server's message, big green or red, with a beep and
+  vibration.
+* **Status dot** in the top bar, also on the login screen: green when the server
+  answers normally, yellow for an unexpected answer (HTTP 5xx, `error_system()`, no
+  JSON), red for no connection. Tap for details: last contact, response times,
+  request counts, last problem. The app checks `whoami` every 30 s while on screen
+  (on the login screen without a session, which api.php answers with a 401).
+* **Settings** (gear in the top bar and on the login screen): scanner sensitivity,
+  and the server address, which can only be changed when logged out.
+* Portrait only; the screen stays on while the camera is open.
 
-Scanning is continuous (CameraX + ML Kit, bundled model, works offline). The same
-code is ignored for 4 seconds and scanning pauses briefly after each result, so a
-card held in front of the camera is submitted once. There is a torch button for dark
-venues.
+### Scanning
 
-Reading goes through `api.php` (JSON; `whoami`, `aantallen`, `kaartverkoop`,
-`kaartcontrole`, `melding`; the two lists include the counts, older versions without
-them still work), writing through the same `do_*.php` scripts the website
-uses. Their outcome (`$_SESSION['notice']` / `$_SESSION['err']`) comes from
-`api.php?action=melding`, or from the redirected page on a server whose `api.php` does
-not have that action yet, so validation rules and messages stay on the server. The
-checkbox *met introducee* is only shown when `whoami` reports
-`introducee_toegestaan`.
+Continuous scanning with CameraX and ML Kit (bundled model, works offline), with a
+torch button. ML Kit has no confidence threshold, so the app filters itself: a code
+only counts when it is read the same several times in a row (`ScanConfirmer`). A
+different value, or a pause longer than 0.7 s, starts the count over.
 
-User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/kaartscan/),
-from `docs/`. The screenshots there are rendered by `ScreenshotTest` with example data
-and committed by CI on every push to `main`; the `pages` job then publishes `docs/`
-(Pages source "GitHub Actions"), only when it changed.
+| Sensitivity | Identical reads | Non-leerlingnummer codes |
+|---|---|---|
+| Tolerant | 1 | error message |
+| Normaal (default) | 2 | error message |
+| Streng | 3 | ignored |
+
+After a submitted code the same code is ignored for 4 s, and scanning pauses for
+1.5 s after each result, so a card held in front of the camera counts once. Codes
+are validated as on the server: at least 6 digits, leading `~` stripped.
+
+### Writing
+
+| Action | Request |
+|---|---|
+| Sell | `POST do_kaartverkoop.php` with `barcode` and optionally `introducee=1` |
+| Check in | `POST do_kaartcontrole.php` with `barcode` |
+| Delete a sale | `GET do_delete.php?kaartverkoop_id=…` |
+| Check out / delete a check-in | `GET do_delete_kaartcontrole.php?kaartcontrole_id=…` |
+
+The scripts put their outcome in `$_SESSION['notice']` or `$_SESSION['err']` and
+redirect; the app does not follow the redirect but asks `api.php?action=melding`.
+Without a session these scripts show the login page, which the app recognises as an
+expired session. Why `do_login` refused a login is read from the login page as well
+(`Html.kt`), since `error_user()` only puts it in the session.
+
+## api.php
+
+Read-only JSON, next to `kaartverkoop.php` on the server. It sets `$json_api = true`
+before including phplib and calls `check_admin()`, so it needs the phplib patch that
+makes `$json_api` pages answer errors as JSON instead of the login page or a
+redirect:
+
+| Status | When |
+|---|---|
+| 401 | no valid session (nothing is logged) |
+| 403 | logged in, but not an admin; the session is ended, as on the website |
+| 400 | bad request, e.g. unknown action or order |
+| 500 | `error_system()`, e.g. an SQL error |
+
+Errors look like `{"error": "…", "title": "…"}`. All answers are
+`Content-Type: application/json` with `Cache-Control: no-store`.
+
+### Actions
+
+**`?action=whoami`**: the session and the current party.
+
+```json
+{
+  "username": "r.snel", "orig_username": "r.snel", "type": "personeel",
+  "ppl_id": 1, "admin": true,
+  "feest": {"feest_id": 8, "naam": "Examengala 2021"},
+  "introducee_toegestaan": true
+}
+```
+
+**`?action=aantallen`**: sold and inside, each split up. Deleted sales and check-ins
+are not counted; a barcode that is no known student counts as sold but not as a
+student.
+
+```json
+{
+  "verkocht": {"totaal": 143, "leerlingen": 128, "introducees": 15},
+  "binnen":   {"totaal": 87,  "leerlingen": 79,  "introducees": 8}
+}
+```
+
+**`?action=kaartverkoop`**: the sales, with `aantallen` as above.
+
+| Parameter | |
+|---|---|
+| `order=chron` | sale time, newest first (default) |
+| `order=aankomst` | arrival time, latest first; not (yet) inside last, by sale time |
+| `order=alph` | surname, first name, prefix; unknown barcodes last |
+| `verwijderd=1` | include deleted sales |
+| `limit=N` | at most N |
+
+```json
+{
+  "aantallen": {"verkocht": {…}, "binnen": {…}},
+  "kaartjes": [{
+    "kaartverkoop_id": 38, "barcode": "213874",
+    "gast": {"ppl_id": 10, "naam": "Sanne Bakker", "voornaam": "Sanne",
+             "tussenvoegsel": "", "achternaam": "Bakker", "klas": "6V2"},
+    "introducee": true, "bron": "scan", "tijdstip": "2021-04-16 19:42:10",
+    "door": {"username": "j.devries", "orig_username": "j.devries"},
+    "verwijderd": null,
+    "binnen": {"kaartcontrole_id": 12, "tijdstip": "2021-04-16 21:14:03",
+               "door": {"username": "a.faber", "orig_username": "a.faber"}}
+  }]
+}
+```
+
+`gast` is `null` for a barcode that is no known student; `klas` is the current
+stamklas or `null`. `verwijderd` is `null` or `{"tijdstip", "door"}`. `binnen` comes
+from a LEFT JOIN on the not deleted `kaartcontrole` and is `null` when the student is
+not inside. `door` holds `$_SESSION['username']` and `['orig_username']` (they differ
+after `do_su`).
+
+**`?action=kaartcontrole`**: the check-ins of the current party, newest first, with
+`aantallen`. Parameters `verwijderd=1` and `limit=N` as above.
+
+```json
+{
+  "aantallen": {"verkocht": {…}, "binnen": {…}},
+  "controles": [{
+    "kaartcontrole_id": 12, "kaartverkoop_id": 38, "barcode": "213874",
+    "gast": {…}, "introducee": true, "tijdstip": "2021-04-16 21:14:03",
+    "door": {…}, "verwijderd": null
+  }]
+}
+```
+
+**`?action=barcode&barcode=213874`**: everything about one barcode: the student
+(`gast`), the not deleted sale (`kaartje`, as in `kaartverkoop`, or `null`) and the
+check-in (`binnen`, as in `kaartcontrole`, or `null`). Not used by the app.
+
+**`?action=melding`**: the message a `do_*.php` script left in the session, returned
+once and then cleared, as `html_start()` does on the website. An error wins over a
+notice.
+
+```json
+{"melding": {"title": "Dubbel", "text": "Barcode 213874 is al binnen", "error": true}}
+```
+
+`{"melding": null}` when there is none.
+
+## Code
+
+| | |
+|---|---|
+| `KaartscanClient.kt` | HTTP (OkHttp, persistent cookie jar), login, api.php, do_*.php |
+| `Api.kt` | api.php JSON to `Me`, `Entry`, `Aantallen`, `Message` |
+| `Html.kt` | messages on the login page (jsoup) |
+| `ServerStats.kt` | outcome of every request, for the status dot |
+| `ScanSensitivity.kt` | sensitivity levels and `ScanConfirmer` |
+| `MainViewModel.kt` | state, loading, scanning, writing |
+| `ui/` | Compose screens: login, start, scan (verkoop/controle), overzicht, settings, camera |
+
+Unit tests cover the JSON parsing, the login page parsing, barcode validation and
+`ScanConfirmer`. `ScreenshotTest` renders the screens with example data (Roborazzi on
+Robolectric) for the website.
 
 ## Building
 
@@ -50,9 +198,14 @@ push; the APKs are artifacts on the workflow run (*kaartscan-debug-apk*,
 *kaartscan-release-apk*). The version code is the workflow run number, so each CI
 build installs over the previous one.
 
+The website is `docs/`. On every push to `main` CI renders the screenshots into
+`docs/screenshots` and commits them when they changed; the `pages` job then publishes
+`docs/` (Pages source "GitHub Actions"), only when it changed.
+
 ### Release signing
 
-Release builds are signed with the key in `kaartscan-release.jks` (not in git).
+Release builds, and debug builds when the key is available, are signed with the key
+in `kaartscan-release.jks` (not in git).
 
 * **CI** takes it from four repository secrets: `KEYSTORE_BASE64` (the keystore,
   base64 encoded), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. Without them

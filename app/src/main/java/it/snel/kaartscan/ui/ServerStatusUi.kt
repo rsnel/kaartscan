@@ -148,22 +148,6 @@ private fun ServerStatusDialog(
                     s.lastLatencyMs?.let { "${it} ms (gemiddeld ${s.avgLatencyMs} ms)" } ?: "nog niet gemeten",
                 )
                 Line("Verzoeken", "${s.okCount} goed, ${s.unexpectedCount} onverwacht, ${s.downCount} mislukt")
-                Line(
-                    "Meldingen",
-                    when (s.meldingApi) {
-                        true -> "via api.php"
-                        false -> "via de pagina (api.php zonder melding)"
-                        null -> "nog niet gebruikt"
-                    },
-                )
-                Line(
-                    "Foutmeldingen api.php",
-                    when (s.jsonErrors) {
-                        true -> "JSON (phplib-patch actief)"
-                        false -> "inlogpagina (zonder phplib-patch)"
-                        null -> "nog niet gezien"
-                    },
-                )
                 if (s.lastProblem != null) {
                     Line("Laatste probleem", "${moment(s.lastProblemAt)}\n${s.lastProblem}")
                 }
