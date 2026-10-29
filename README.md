@@ -44,7 +44,16 @@ User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/
   request counts, last problem. The app checks `whoami` every 30 s while on screen
   (on the login screen without a session, which api.php answers with a 401).
 * **Settings** (gear in the top bar and on the login screen): scanner sensitivity,
-  and the server address, which can only be changed when logged out.
+  the server address (only changeable when logged out), and updates.
+* **Updates**: at startup (unless switched off in settings) and with *Nu controleren
+  op updates*, the app looks up the latest GitHub release. A newer version is offered
+  in a dialog over any screen: it downloads `kaartscan-<tag>.apk` into the cache and
+  hands it to Android's package installer (through a `FileProvider`; Android 8+ asks
+  once to allow installing unknown apps for Kaartscan). The latest tag is read from the
+  redirect of `/releases/latest`, not the GitHub API, which allows only 60 requests per
+  hour per IP address. Versions compare numerically (`1.10` > `1.9`); a build after a
+  tag (`1.9-3-gabc1234`) counts as that tag, and a local `dev` build is only offered an
+  update when checking by hand.
 * Portrait only; the screen stays on while the camera is open.
 
 ### Scanning
@@ -224,11 +233,12 @@ notice.
 | `Html.kt` | messages on the login page (jsoup) |
 | `ServerStats.kt` | outcome of every request, for the status dot |
 | `ScanSensitivity.kt` | sensitivity levels and `ScanConfirmer` |
+| `Updates.kt` | latest release, download, version comparison |
 | `MainViewModel.kt` | state, loading, scanning, writing |
 | `ui/` | Compose screens: login, start, scan (verkoop/controle), overzicht, systeemlog, settings, camera |
 
 Unit tests cover the JSON parsing, the login page parsing, barcode validation and
-`ScanConfirmer`. `ScreenshotTest` renders the screens with example data (Roborazzi on
+`ScanConfirmer` and the version comparison. `ScreenshotTest` renders the screens with example data (Roborazzi on
 Robolectric) for the website.
 
 ## Building

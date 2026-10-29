@@ -289,6 +289,11 @@ class ScreenshotTest {
             serverError = null,
             serverSaved = false,
             version = "1.9 (build 42)",
+            autoUpdateCheck = true,
+            onAutoUpdateCheckChange = {},
+            onCheckUpdates = {},
+            updateStatus = "Je hebt de nieuwste versie (1.9).",
+            checkingUpdates = false,
             onBack = {},
         )
     }

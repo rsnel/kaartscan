@@ -15,6 +15,7 @@ import it.snel.kaartscan.ui.LoginScreen
 import it.snel.kaartscan.ui.MainScreen
 import it.snel.kaartscan.ui.SettingsScreen
 import it.snel.kaartscan.ui.StartupScreen
+import it.snel.kaartscan.ui.UpdateDialog
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,4 +41,6 @@ fun KaartscanApp(vm: MainViewModel = viewModel()) {
         vm.checkingSession -> StartupScreen(vm.baseUrl, onSkip = { vm.skipSessionCheck() })
         else -> LoginScreen(vm, onOpenSettings = { settings = true })
     }
+    // a found update is offered over whatever screen is open
+    UpdateDialog(vm)
 }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +31,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -49,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import it.snel.kaartscan.KaartscanClient
 import it.snel.kaartscan.MainViewModel
 import it.snel.kaartscan.ScanSensitivity
+import it.snel.kaartscan.UpdateState
 
 @Composable
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
@@ -96,6 +99,19 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         serverError = serverError,
         serverSaved = saved,
         version = version,
+        autoUpdateCheck = vm.autoUpdateCheck,
+        onAutoUpdateCheckChange = { vm.updateAutoUpdateCheck(it) },
+        onCheckUpdates = { vm.checkForUpdates() },
+        updateStatus = when (val u = vm.update) {
+            is UpdateState.Checking -> "Bezig met controleren…"
+            is UpdateState.UpToDate -> "Je hebt de nieuwste versie (${u.current})."
+            is UpdateState.Failed -> if (u.release == null) "Controleren mislukt: ${u.message}" else null
+            is UpdateState.Available -> "Versie ${u.release.version} is beschikbaar."
+            is UpdateState.Downloading -> "Versie ${u.release.version} wordt gedownload…"
+            is UpdateState.Ready -> "Versie ${u.release.version} is klaar om te installeren."
+            UpdateState.Idle -> null
+        },
+        checkingUpdates = vm.update is UpdateState.Checking,
         onBack = onBack,
     )
 }
@@ -114,6 +130,11 @@ internal fun SettingsContent(
     serverError: String?,
     serverSaved: Boolean,
     version: String?,
+    autoUpdateCheck: Boolean,
+    onAutoUpdateCheckChange: (Boolean) -> Unit,
+    onCheckUpdates: () -> Unit,
+    updateStatus: String?,
+    checkingUpdates: Boolean,
     onBack: () -> Unit,
 ) {
     Scaffold(
@@ -201,6 +222,39 @@ internal fun SettingsContent(
                         Text("Standaard")
                     }
                 }
+            }
+
+            HorizontalDivider()
+
+            Text("Updates", style = MaterialTheme.typography.titleMedium)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = autoUpdateCheck,
+                        onValueChange = onAutoUpdateCheckChange,
+                        role = Role.Switch,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Bij opstarten op updates controleren", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Bij een nieuwe versie vraagt de app of je die wilt installeren.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(checked = autoUpdateCheck, onCheckedChange = null)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = onCheckUpdates, enabled = !checkingUpdates) {
+                    Text("Nu controleren op updates")
+                }
+            }
+            updateStatus?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             HorizontalDivider()

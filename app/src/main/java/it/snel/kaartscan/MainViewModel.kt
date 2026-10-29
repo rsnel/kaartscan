@@ -40,6 +40,17 @@ data class ScreenState(
     val loadError: String? = null,
 )
 
+sealed interface UpdateState {
+    data object Idle : UpdateState
+    data object Checking : UpdateState
+    data class UpToDate(val current: String) : UpdateState
+    /** [current]: the installed version; [knownOlder] false for a dev build we cannot compare */
+    data class Available(val release: Release, val current: String, val knownOlder: Boolean) : UpdateState
+    data class Downloading(val release: Release, val progress: Float?) : UpdateState
+    data class Ready(val release: Release, val file: java.io.File) : UpdateState
+    data class Failed(val message: String, val release: Release?) : UpdateState
+}
+
 private data class Loaded(
     val me: Me,
     val entries: List<Entry> = emptyList(),
@@ -82,6 +93,83 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     private val confirmer = ScanConfirmer()
 
+    // ---- updates ---------------------------------------------------------------
+
+    private val updater = Updater(app)
+    val currentVersion: String get() = updater.currentVersion
+    var update by mutableStateOf<UpdateState>(UpdateState.Idle)
+        private set
+    /** the update dialog, over whatever screen is open */
+    var updateDialog by mutableStateOf(false)
+        private set
+    var autoUpdateCheck by mutableStateOf(updater.autoCheck)
+        private set
+    private var updateJob: Job? = null
+
+    fun updateAutoUpdateCheck(value: Boolean) {
+        autoUpdateCheck = value
+        updater.autoCheck = value
+    }
+
+    /**
+     * [auto]: at startup; stays silent unless a newer version is found.
+     * By hand, an unknown (dev) version also gets the offer.
+     */
+    fun checkForUpdates(auto: Boolean = false) {
+        if (update is UpdateState.Checking || update is UpdateState.Downloading) return
+        update = UpdateState.Checking
+        updateJob = viewModelScope.launch {
+            try {
+                val release = io { updater.latest() }
+                val current = updater.currentVersion
+                val newer = Versions.isNewer(release.version, current)
+                if (newer == true || (newer == null && !auto)) {
+                    update = UpdateState.Available(release, current, knownOlder = newer == true)
+                    updateDialog = true
+                } else {
+                    update = if (auto) UpdateState.Idle else UpdateState.UpToDate(current)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                update = if (auto) UpdateState.Idle else UpdateState.Failed(failMessage(e), null)
+            }
+        }
+    }
+
+    fun downloadUpdate() {
+        val release = when (val u = update) {
+            is UpdateState.Available -> u.release
+            is UpdateState.Failed -> u.release ?: return
+            else -> return
+        }
+        update = UpdateState.Downloading(release, null)
+        updateJob = viewModelScope.launch {
+            try {
+                val file = io {
+                    updater.download(release) { p ->
+                        viewModelScope.launch { if (update is UpdateState.Downloading) update = UpdateState.Downloading(release, p) }
+                    }
+                }
+                update = UpdateState.Ready(release, file)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                update = UpdateState.Failed(failMessage(e), release)
+            }
+        }
+    }
+
+    fun dismissUpdate() {
+        updateDialog = false
+        if (update is UpdateState.Downloading) {
+            updater.cancel()
+            updateJob?.cancel()
+        }
+        // forget a found update; a new check finds it again
+        if (update !is UpdateState.UpToDate) update = UpdateState.Idle
+    }
+
     fun updateScanSensitivity(value: ScanSensitivity) {
         scanSensitivity = value
         client.scanSensitivity = value
@@ -114,6 +202,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var lastScanAt = 0L
 
     init {
+        if (updater.autoCheck) checkForUpdates(auto = true)
+
         // a still valid stored session skips the login screen
         if (client.hasSession()) {
             checkingSession = true
