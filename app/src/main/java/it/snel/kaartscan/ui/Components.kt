@@ -247,7 +247,8 @@ fun RowCard(
     onExitClick: () -> Unit = {},
     onBlockedClick: () -> Unit = {},
     checkOutHere: Boolean = true,
-) {    val deleted = row.verwijderd != null
+) {
+    val deleted = row.verwijderd != null
     ElevatedCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
