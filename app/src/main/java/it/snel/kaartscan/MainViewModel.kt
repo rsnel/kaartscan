@@ -13,18 +13,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
 /** Order of the start screen too: Overzicht is the third choice. */
-enum class Tab { VERKOOP, CONTROLE, OVERZICHT }
+enum class Tab { VERKOOP, CONTROLE, OVERZICHT, LOG }
 
 /** Sort orders of Overzicht; [param] is api.php's order= value. */
 enum class OverzichtOrder(val param: String) { VERKOOPTIJD("chron"), AANKOMSTTIJD("aankomst"), ALFABETISCH("alph") }
 
 data class ScreenState(
     val entries: List<Entry> = emptyList(),
+    /** LOG only */
+    val log: List<LogEvent> = emptyList(),
     /** CONTROLE shows binnen, OVERZICHT shows verkocht */
     val aantallen: Aantallen? = null,
     val loaded: Boolean = false,
@@ -37,7 +40,12 @@ data class ScreenState(
     val loadError: String? = null,
 )
 
-private data class Loaded(val me: Me, val entries: List<Entry>, val aantallen: Aantallen?)
+private data class Loaded(
+    val me: Me,
+    val entries: List<Entry> = emptyList(),
+    val aantallen: Aantallen? = null,
+    val log: List<LogEvent> = emptyList(),
+)
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val client = KaartscanClient(app)
@@ -240,14 +248,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             Tab.VERKOOP -> client.kaartjes(limit = 10)
             Tab.CONTROLE -> client.controles()
             Tab.OVERZICHT -> client.kaartjes(overzichtOrder.param, showDeleted)
+            Tab.LOG -> return Loaded(user, log = client.log(logZoek))
         }
         return Loaded(user, listing.entries, listing.aantallen)
+    }
+
+    /** search in the system log on name or leerlingnummer; the database filters */
+    var logZoek by mutableStateOf("")
+        private set
+    private var logZoekJob: Job? = null
+
+    fun updateLogZoek(value: String) {
+        logZoek = value
+        logZoekJob?.cancel()
+        logZoekJob = viewModelScope.launch {
+            delay(400) // wait until typing stops
+            load(Tab.LOG)
+        }
     }
 
     private fun apply(tab: Tab, loaded: Loaded) {
         me = loaded.me
         if (!loaded.me.introduceeToegestaan) introducee = false
-        update(tab) { it.copy(entries = loaded.entries, aantallen = loaded.aantallen, loaded = true, loading = false) }
+        update(tab) {
+            it.copy(entries = loaded.entries, aantallen = loaded.aantallen, log = loaded.log, loaded = true, loading = false)
+        }
     }
 
     fun load(tab: Tab) {

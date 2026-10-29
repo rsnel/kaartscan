@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.HowToReg
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -80,18 +81,21 @@ private fun Tab.label(): String = when (this) {
     Tab.VERKOOP -> "Kaartverkoop"
     Tab.OVERZICHT -> "Overzicht"
     Tab.CONTROLE -> "Kaartcontrole"
+    Tab.LOG -> "Systeemlog"
 }
 
 private fun Tab.description(): String = when (this) {
     Tab.VERKOOP -> "Kaartjes verkopen: scan de leerlingpas"
     Tab.OVERZICHT -> "Alle verkochte kaartjes en aantallen"
     Tab.CONTROLE -> "Bij de deur: scan de leerlingpas"
+    Tab.LOG -> "Alles wat er gebeurd is, en door wie"
 }
 
 private fun Tab.icon(): ImageVector = when (this) {
     Tab.VERKOOP -> Icons.Filled.ConfirmationNumber
     Tab.OVERZICHT -> Icons.AutoMirrored.Filled.List
     Tab.CONTROLE -> Icons.Filled.HowToReg
+    Tab.LOG -> Icons.Filled.History
 }
 
 @Composable
@@ -141,6 +145,7 @@ fun MainScreen(
             Tab.VERKOOP -> ScanScreen(vm, Tab.VERKOOP)
             Tab.OVERZICHT -> OverzichtScreen(vm)
             Tab.CONTROLE -> ScanScreen(vm, Tab.CONTROLE)
+            Tab.LOG -> LogScreen(vm)
         }
     }
 }

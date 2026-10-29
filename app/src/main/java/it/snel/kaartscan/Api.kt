@@ -39,6 +39,26 @@ data class Entry(
     val binnen: String? = null,
     /** kaartjes only: do_delete_kaartcontrole.php link that undoes 'binnen' */
     val exitLink: String? = null,
+    /** kaartjes only: "uitgecheckt om 22:01:00 (door r.snel)", the latest check-out, if any */
+    val uitgecheckt: String? = null,
+)
+
+enum class LogSoort(val param: String, val label: String) {
+    VERKOOP("verkoop", "Verkocht"),
+    BINNEN("binnen", "Binnen"),
+    UITGECHECKT("uitgecheckt", "Uitgecheckt"),
+    VERKOOP_VERWIJDERD("verkoop_verwijderd", "Verkoop verwijderd"),
+}
+
+/** One line of api.php?action=log. */
+data class LogEvent(
+    val soort: LogSoort,
+    val tijdstip: String,
+    val door: String,
+    val barcode: String,
+    /** "Sanne Bakker (6V2)", null for an unknown barcode */
+    val gast: String?,
+    val introducee: Boolean,
 )
 
 /** JSON from api.php; field names as in api.php. */
@@ -94,12 +114,32 @@ object Api {
             f(o, !o.isNull("verwijderd"))
         }
 
-    private fun entry(o: JSONObject, id: Int, deleteLink: String?): Entry {
-        val gast = o.optJSONObject("gast")?.let { g ->
-            val naam = str(g, "naam") ?: ""
-            val klas = str(g, "klas") ?: "KLAS?"
-            "$naam ($klas)"
+    /** api.php?action=log; unknown kinds of events are skipped */
+    fun log(o: JSONObject): List<LogEvent> {
+        val arr = o.getJSONArray("log")
+        return (0 until arr.length()).mapNotNull { i ->
+            val e = arr.getJSONObject(i)
+            val soort = LogSoort.entries.firstOrNull { it.param == str(e, "soort") } ?: return@mapNotNull null
+            LogEvent(
+                soort = soort,
+                tijdstip = str(e, "tijdstip") ?: "",
+                door = wie(e.optJSONObject("door")),
+                barcode = str(e, "barcode") ?: "",
+                gast = gast(e),
+                introducee = bool(e, "introducee"),
+            )
         }
+    }
+
+    /** "Sanne Bakker (6V2)", null for an unknown barcode */
+    private fun gast(o: JSONObject): String? = o.optJSONObject("gast")?.let { g ->
+        val naam = str(g, "naam") ?: ""
+        val klas = str(g, "klas") ?: "KLAS?"
+        "$naam ($klas)"
+    }
+
+    private fun entry(o: JSONObject, id: Int, deleteLink: String?): Entry {
+        val gast = gast(o)
         val verwijderd = o.optJSONObject("verwijderd")?.let { v ->
             "verwijderd door ${wie(v.optJSONObject("door"))} op ${str(v, "tijdstip") ?: "?"}"
         }
@@ -116,6 +156,10 @@ object Api {
             binnen = o.optJSONObject("binnen")?.let { b ->
                 val t = str(b, "tijdstip") ?: "?"
                 "binnen om ${t.substringAfter(' ')} (door ${wie(b.optJSONObject("door"))})"
+            },
+            uitgecheckt = o.optJSONObject("uitgecheckt")?.let { u ->
+                val t = str(u, "tijdstip") ?: "?"
+                "uitgecheckt om ${t.substringAfter(' ')} (door ${wie(u.optJSONObject("door"))})"
             },
         )
     }

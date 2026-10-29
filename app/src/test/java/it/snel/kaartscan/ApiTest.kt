@@ -59,7 +59,8 @@ class ApiTest {
                "verwijderd": {"tijdstip": "2026-10-31 19:31:00", "door": {"username": "a.faber", "orig_username": "a.faber"}}},
               {"kaartverkoop_id": 42, "barcode": "0888049978040401221026", "gast": null,
                "introducee": false, "bron": "scan", "tijdstip": "2026-10-31 19:20:00",
-               "door": {"username": "r.snel", "orig_username": "r.snel"}, "verwijderd": null}
+               "door": {"username": "r.snel", "orig_username": "r.snel"}, "verwijderd": null, "binnen": null,
+               "uitgecheckt": {"kaartcontrole_id": 13, "tijdstip": "2026-10-31 21:01:00", "door": {"username": "r.snel", "orig_username": "r.snel"}}}
             ]}
         """), base)
         assertEquals(3, list.size)
@@ -79,8 +80,10 @@ class ApiTest {
         assertNull(milan.deleteLink)
         assertNull(milan.binnen)
         assertNull(milan.exitLink)
+        assertNull(milan.uitgecheckt)
 
         assertNull(onbekend.gast)
+        assertEquals("uitgecheckt om 21:01:00 (door r.snel)", onbekend.uitgecheckt)
         assertEquals("0888049978040401221026", onbekend.barcode)
     }
 
@@ -107,6 +110,27 @@ class ApiTest {
              "controles": []}
         """)
         assertEquals(Aantallen(Counts("4", "3", "1"), Counts("3", "2", "1")), Api.aantallenIn(o))
+    }
+
+    @Test
+    fun log() {
+        val log = Api.log(JSONObject("""
+            {"log": [
+              {"soort": "uitgecheckt", "tijdstip": "2026-10-31 21:01:00",
+               "door": {"username": "r.snel", "orig_username": "r.snel"},
+               "kaartverkoop_id": 40, "kaartcontrole_id": 13, "barcode": "209331",
+               "gast": {"ppl_id": 12, "naam": "Daan Visser", "klas": "5H1"}, "introducee": false},
+              {"soort": "iets_nieuws", "tijdstip": "2026-10-31 21:00:30", "door": null,
+               "kaartverkoop_id": 40, "kaartcontrole_id": null, "barcode": "209331", "gast": null, "introducee": false},
+              {"soort": "verkoop", "tijdstip": "2026-10-31 19:20:00",
+               "door": {"username": "r.snel", "orig_username": "s.pieneman"},
+               "kaartverkoop_id": 42, "kaartcontrole_id": null, "barcode": "0888049978040401221026",
+               "gast": null, "introducee": true}
+            ]}
+        """))
+        assertEquals(2, log.size) // unknown kinds are skipped
+        assertEquals(LogEvent(LogSoort.UITGECHECKT, "2026-10-31 21:01:00", "r.snel", "209331", "Daan Visser (5H1)", false), log[0])
+        assertEquals(LogEvent(LogSoort.VERKOOP, "2026-10-31 19:20:00", "r.snel/s.pieneman", "0888049978040401221026", null, true), log[1])
     }
 
     @Test

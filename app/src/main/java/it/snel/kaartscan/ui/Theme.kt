@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 
 val SuccessGreen = Color(0xFF2E7D32)
 val ErrorRed = Color(0xFFC62828)
+val CheckoutAmber = Color(0xFFB26A00)
 
 private val Light = lightColorScheme(
     primary = Color(0xFF1A3A6B),

@@ -17,7 +17,8 @@ User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/
   The PHP session cookie (`kaartscan`) is kept in the app's storage; at startup a
   still valid session skips the login screen. Only users in `$admins` get in, exactly
   as on the website. The password field has a show/hide button.
-* **Start screen** with Kaartverkoop, Kaartcontrole, Overzicht and Uitloggen. The top
+* **Start screen** with Kaartverkoop, Kaartcontrole, Overzicht, Systeemlog and
+  Uitloggen. The top
   bar of every screen shows the party (from `whoami`) and the logged in user.
 * **Kaartverkoop**: scan a card or type the leerlingnummer, optionally tick
   *met introducee* first (only shown when `whoami` reports `feest.introducee_toegestaan`;
@@ -28,7 +29,11 @@ User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/
 * **Overzicht**: all sales with inside / sold counts; order by sale time, arrival
   time or name; who is inside, with arrival time; show deleted; local search on name
   or number. Someone who is inside has a check-out button (deletes the
-  kaartcontrole); only after that the bin to delete the sale appears.
+  kaartcontrole); only after that the bin to delete the sale appears. Someone who
+  was checked out and is not inside again shows when and by whom.
+* **Systeemlog**: every sale, check-in, check-out and deleted sale of the party,
+  newest first, with time and user. Search on a student's name or number; the
+  database does the filtering, so older events are found too.
 * **Counts**: total, students, introducees. For a party without introducees (and
   none in the data) only the number of students is shown.
 * **Result banner**: the server's message, big green or red, with a beep and
@@ -146,7 +151,9 @@ student.
 `gast` is `null` for a barcode that is no known student; `klas` is the current
 stamklas or `null`. `verwijderd` is `null` or `{"tijdstip", "door"}`. `binnen` comes
 from a LEFT JOIN on the not deleted `kaartcontrole` and is `null` when the student is
-not inside. `door` holds `$_SESSION['username']` and `['orig_username']` (they differ
+not inside. `uitgecheckt` is the deleted `kaartcontrole` with the highest id
+(`{"kaartcontrole_id", "tijdstip", "door"}` with the delete time and user), or
+`null`; the app only shows it when `binnen` is `null`. `door` holds `$_SESSION['username']` and `['orig_username']` (they differ
 after `do_su`).
 
 **`?action=kaartcontrole`**: the check-ins of the current party, newest first, with
@@ -166,6 +173,37 @@ after `do_su`).
 **`?action=barcode&barcode=213874`**: everything about one barcode: the student
 (`gast`), the not deleted sale (`kaartje`, as in `kaartverkoop`, or `null`) and the
 check-in (`binnen`, as in `kaartcontrole`, or `null`). Not used by the app.
+
+**`?action=log`**: the history of the current party, newest first, as one list of
+events. The database merges four queries with `UNION ALL`:
+
+| `soort` | From | `tijdstip` / `door` |
+|---|---|---|
+| `verkoop` | every `kaartverkoop` row | create |
+| `binnen` | every `kaartcontrole` row | create |
+| `uitgecheckt` | deleted `kaartcontrole` rows | delete |
+| `verkoop_verwijderd` | deleted `kaartverkoop` rows | delete |
+
+Events at the same second are ordered sale, check-in, check-out, deleted sale.
+Duplicates that `do_kaartverkoop.php` / `do_kaartcontrole.php` hard-delete right away
+never show up.
+
+| Parameter | |
+|---|---|
+| `zoek=…` | only events of a barcode containing the text, or a student whose full name (first name, prefix, surname) contains it |
+| `limit=N` | at most N (the app asks 500) |
+
+```json
+{"log": [{
+  "soort": "uitgecheckt", "tijdstip": "2021-04-16 21:20:47",
+  "door": {"username": "a.faber", "orig_username": "a.faber"},
+  "kaartverkoop_id": 40, "kaartcontrole_id": 13, "barcode": "209331",
+  "gast": {…}, "introducee": false
+}]}
+```
+
+`kaartcontrole_id` is `null` for the two sale events. The app skips kinds it does not
+know.
 
 **`?action=melding`**: the message a `do_*.php` script left in the session, returned
 once and then cleared, as `html_start()` does on the website. An error wins over a
@@ -187,7 +225,7 @@ notice.
 | `ServerStats.kt` | outcome of every request, for the status dot |
 | `ScanSensitivity.kt` | sensitivity levels and `ScanConfirmer` |
 | `MainViewModel.kt` | state, loading, scanning, writing |
-| `ui/` | Compose screens: login, start, scan (verkoop/controle), overzicht, settings, camera |
+| `ui/` | Compose screens: login, start, scan (verkoop/controle), overzicht, systeemlog, settings, camera |
 
 Unit tests cover the JSON parsing, the login page parsing, barcode validation and
 `ScanConfirmer`. `ScreenshotTest` renders the screens with example data (Roborazzi on

@@ -243,6 +243,10 @@ fun RowCard(row: Entry, onDeleteClick: () -> Unit, onExitClick: () -> Unit = {})
                 row.binnen?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
                 }
+                // a check-out only matters while the student is not inside again
+                if (row.binnen == null) row.uitgecheckt?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = CheckoutAmber)
+                }
                 row.verwijderd?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }

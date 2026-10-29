@@ -20,6 +20,8 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import it.snel.kaartscan.Counts
 import it.snel.kaartscan.Message
 import it.snel.kaartscan.Entry
+import it.snel.kaartscan.LogEvent
+import it.snel.kaartscan.LogSoort
 import it.snel.kaartscan.Me
 import it.snel.kaartscan.OverzichtOrder
 import it.snel.kaartscan.Aantallen
@@ -257,7 +259,7 @@ class ScreenshotTest {
                         if (i == 0 || i == 2) e.copy(
                             binnen = "binnen om 21:1${4 + i / 2}:03 (door a.faber)",
                             exitLink = "https://example.org/kaartscan/do_delete_kaartcontrole.php?kaartcontrole_id=$i",
-                        ) else e
+                        ) else if (i == 1) e.copy(uitgecheckt = "uitgecheckt om 21:20:47 (door a.faber)") else e
                     } + entry(37, "2021-04-16 19:30:12", "208120", "Milan de Boer (5H2)", false, deletedBy = user),
                     aantallen = aantallen,
                     loaded = true,
@@ -289,5 +291,31 @@ class ScreenshotTest {
             version = "1.0.42",
             onBack = {},
         )
+    }
+
+    @Test
+    fun systeemlog() = shot("8-systeemlog") {
+        fun ev(soort: LogSoort, t: String, door: String, barcode: String, gast: String, intro: Boolean = false) =
+            LogEvent(soort, "2021-04-16 $t", door, barcode, gast, intro)
+        MainScaffold(Tab.LOG, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
+            LogContent(
+                state = ScreenState(
+                    loaded = true,
+                    log = listOf(
+                        ev(LogSoort.UITGECHECKT, "21:20:47", "a.faber", "209331", "Daan Visser (5H1)"),
+                        ev(LogSoort.BINNEN, "21:15:03", "a.faber", "211408", "Lotte van Dijk (6V1)"),
+                        ev(LogSoort.BINNEN, "21:14:03", "a.faber", "213874", "Sanne Bakker (6V2)", true),
+                        ev(LogSoort.BINNEN, "21:02:11", "a.faber", "209331", "Daan Visser (5H1)"),
+                        ev(LogSoort.VERKOOP, "19:42:10", "j.devries", "213874", "Sanne Bakker (6V2)", true),
+                        ev(LogSoort.VERKOOP, "19:41:55", "j.devries", "209331", "Daan Visser (5H1)"),
+                        ev(LogSoort.VERKOOP, "19:40:02", "j.devries", "211408", "Lotte van Dijk (6V1)"),
+                        ev(LogSoort.VERKOOP_VERWIJDERD, "19:31:00", "j.devries", "208120", "Milan de Boer (5H2)"),
+                        ev(LogSoort.VERKOOP, "19:30:12", "j.devries", "208120", "Milan de Boer (5H2)"),
+                    ),
+                ),
+                zoek = "",
+                onZoekChange = {},
+            )
+        }
     }
 }

@@ -141,6 +141,13 @@ class KaartscanClient(context: Context) {
         return Listing(Api.controles(o, baseUrl), Api.aantallenIn(o))
     }
 
+    /** every sale, check-in, check-out and deleted sale, newest first; [zoek]: name or number */
+    fun log(zoek: String = "", limit: Int = 500): List<LogEvent> {
+        val q = StringBuilder("action=log&limit=").append(limit)
+        if (zoek.isNotBlank()) q.append("&zoek=").append(java.net.URLEncoder.encode(zoek.trim(), "UTF-8"))
+        return Api.log(api(q.toString()))
+    }
+
     // ---- writing: do_*.php -----------------------------------------------------
 
     /** do_kaartverkoop.php; returns the server's message. */
