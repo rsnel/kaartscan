@@ -155,7 +155,13 @@ class ScreenshotTest {
             ScanContent(
                 tab = Tab.VERKOOP,
                 state = ScreenState(
-                    entries = verkoopRows,
+                    // Sanne is already inside: crossed-out bin
+                    entries = verkoopRows.mapIndexed { i, e ->
+                        if (i == 0) e.copy(
+                            binnen = "binnen om 21:14:03 (door a.faber)",
+                            exitLink = "https://example.org/kaartscan/do_delete_kaartcontrole.php?kaartcontrole_id=1",
+                        ) else e
+                    },
                     aantallen = aantallen,
                     loaded = true,
                     result = Message("Success", "Barcode 213874 stored in database", false),

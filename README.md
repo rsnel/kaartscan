@@ -22,7 +22,9 @@ User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/
   bar of every screen shows the party (from `whoami`) and the logged in user.
 * **Kaartverkoop**: scan a card or type the leerlingnummer, optionally tick
   *met introducee* first (only shown when `whoami` reports `feest.introducee_toegestaan`;
-  it resets after a successful sale). Shows the sold counts and the latest 10 sales.
+  it resets after a successful sale). Shows the sold counts and the latest 10 sales;
+  a sale of someone who is inside has a crossed-out bin there that points to
+  Overzicht (check out first, then delete).
 * **Kaartcontrole**: scan at the door. Shows *toegelaten MET/ZONDER introducee*,
   *al binnen* or *geen kaartje gekocht*, the counts as inside / sold per category,
   and the check-ins (with delete).

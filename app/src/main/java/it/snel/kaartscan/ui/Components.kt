@@ -7,6 +7,9 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -160,7 +163,14 @@ private fun Stat(label: String, value: String) {
     }
 }
 
-/** List of kaartjes or controles with a confirmation dialog for 'verwijderen'. */
+private enum class RowAction { DELETE, CHECK_OUT, BLOCKED }
+
+/**
+ * List of kaartjes or controles with a confirmation dialog for the row
+ * buttons. [checkOutHere] false (Kaartverkoop): someone who is inside gets
+ * a crossed-out bin that only explains to use Overzicht, instead of the
+ * check-out button.
+ */
 @Composable
 fun RowList(
     rows: List<Entry>,
@@ -168,9 +178,9 @@ fun RowList(
     emptyText: String,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
+    checkOutHere: Boolean = true,
 ) {
-    // (entry, true = check out / false = delete)
-    var pending by remember { mutableStateOf<Pair<Entry, Boolean>?>(null) }
+    var pending by remember { mutableStateOf<Pair<Entry, RowAction>?>(null) }
     Box(modifier) {
         LazyColumn(
             contentPadding = PaddingValues(12.dp),
@@ -183,38 +193,61 @@ fun RowList(
             items(rows) { row ->
                 RowCard(
                     row,
-                    onDeleteClick = { pending = row to false },
-                    onExitClick = { pending = row to true },
+                    checkOutHere = checkOutHere,
+                    onDeleteClick = { pending = row to RowAction.DELETE },
+                    onExitClick = { pending = row to RowAction.CHECK_OUT },
+                    onBlockedClick = { pending = row to RowAction.BLOCKED },
                 )
             }
         }
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
     }
-    pending?.let { (row, exit) ->
+    pending?.let { (row, action) ->
         val who = "${row.gast ?: "onbekend"} (${row.barcode})"
-        AlertDialog(
-            onDismissRequest = { pending = null },
-            title = { Text(if (exit) "Niet meer binnen?" else "Verwijderen?") },
-            text = {
-                Text(
-                    if (exit) "De aanwezigheid van $who wordt verwijderd. Het kaartje blijft bestaan."
-                    else who
+        when (action) {
+            RowAction.BLOCKED -> AlertDialog(
+                onDismissRequest = { pending = null },
+                title = { Text("Al binnen") },
+                text = {
+                    Text(
+                        "$who is al binnen gescand. Dit kaartje kun je alleen in Overzicht verwijderen: " +
+                            "check de leerling daar eerst uit."
+                    )
+                },
+                confirmButton = { TextButton(onClick = { pending = null }) { Text("OK") } },
+            )
+            else -> {
+                val exit = action == RowAction.CHECK_OUT
+                AlertDialog(
+                    onDismissRequest = { pending = null },
+                    title = { Text(if (exit) "Niet meer binnen?" else "Verwijderen?") },
+                    text = {
+                        Text(
+                            if (exit) "De aanwezigheid van $who wordt verwijderd. Het kaartje blijft bestaan."
+                            else who
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            (if (exit) row.exitLink else row.deleteLink)?.let(onDelete)
+                            pending = null
+                        }) { Text(if (exit) "Uitchecken" else "Verwijderen") }
+                    },
+                    dismissButton = { TextButton(onClick = { pending = null }) { Text("Annuleren") } },
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    (if (exit) row.exitLink else row.deleteLink)?.let(onDelete)
-                    pending = null
-                }) { Text(if (exit) "Uitchecken" else "Verwijderen") }
-            },
-            dismissButton = { TextButton(onClick = { pending = null }) { Text("Annuleren") } },
-        )
+            }
+        }
     }
 }
 
 @Composable
-fun RowCard(row: Entry, onDeleteClick: () -> Unit, onExitClick: () -> Unit = {}) {
-    val deleted = row.verwijderd != null
+fun RowCard(
+    row: Entry,
+    onDeleteClick: () -> Unit,
+    onExitClick: () -> Unit = {},
+    onBlockedClick: () -> Unit = {},
+    checkOutHere: Boolean = true,
+) {    val deleted = row.verwijderd != null
     ElevatedCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -253,13 +286,37 @@ fun RowCard(row: Entry, onDeleteClick: () -> Unit, onExitClick: () -> Unit = {})
             }
             // someone who is inside is checked out first; only then can the sale go
             when {
-                row.exitLink != null -> IconButton(onClick = onExitClick) {
+                row.exitLink != null && checkOutHere -> IconButton(onClick = onExitClick) {
                     Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Uitchecken")
+                }
+                row.exitLink != null -> IconButton(onClick = onBlockedClick) {
+                    CrossedOutDelete()
                 }
                 row.deleteLink != null -> IconButton(onClick = onDeleteClick) {
                     Icon(Icons.Filled.Delete, contentDescription = "Verwijderen")
                 }
             }
+        }
+    }
+}
+
+/** A grey bin with a line through it: deleting is not possible here. */
+@Composable
+private fun CrossedOutDelete() {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val background = MaterialTheme.colorScheme.surfaceContainerLow
+    Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+        Icon(
+            Icons.Filled.Delete,
+            contentDescription = "Verwijderen niet mogelijk: al binnen",
+            tint = color,
+        )
+        Canvas(Modifier.size(24.dp)) {
+            val start = Offset(size.width * 0.12f, size.height * 0.12f)
+            val end = Offset(size.width * 0.88f, size.height * 0.88f)
+            // a gap in the card colour first, so the line stands out from the bin
+            drawLine(background, start, end, strokeWidth = 5.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(color, start, end, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
         }
     }
 }

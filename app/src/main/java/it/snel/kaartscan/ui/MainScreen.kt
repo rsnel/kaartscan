@@ -405,6 +405,8 @@ internal fun ScanContent(
             emptyText = if (state.loaded) "Nog niets" else "",
             onDelete = onDelete,
             modifier = Modifier.weight(1f),
+            // checking out belongs in Overzicht, not at the ticket sale
+            checkOutHere = tab != Tab.VERKOOP,
         )
     }
 }
