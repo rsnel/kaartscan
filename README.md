@@ -237,9 +237,9 @@ notice.
 | `MainViewModel.kt` | state, loading, scanning, writing |
 | `ui/` | Compose screens: login, start, scan (verkoop/controle), overzicht, systeemlog, settings, camera |
 
-Unit tests cover the JSON parsing, the login page parsing, barcode validation and
-`ScanConfirmer` and the version comparison. `ScreenshotTest` renders the screens with example data (Roborazzi on
-Robolectric) for the website.
+Unit tests cover the JSON parsing, the login page parsing, barcode validation,
+`ScanConfirmer` and the version comparison. `ScreenshotTest` renders the screens with
+example data (Roborazzi on Robolectric) for the website.
 
 ## Building
 
