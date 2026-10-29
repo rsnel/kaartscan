@@ -209,11 +209,12 @@ never show up.
   "soort": "uitgecheckt", "tijdstip": "2021-04-16 21:20:47",
   "door": {"username": "a.faber", "orig_username": "a.faber"},
   "kaartverkoop_id": 40, "kaartcontrole_id": 13, "barcode": "209331",
-  "gast": {…}, "introducee": false
+  "gast": {…}, "introducee": false, "bron": "scan"
 }]}
 ```
 
-`kaartcontrole_id` is `null` for the two sale events. The app skips kinds it does not
+`kaartcontrole_id` is `null` for the two sale events. `bron` is the ticket's source
+(`scan`, `wiscollect`); the app shows it with the two sale events. The app skips kinds it does not
 know.
 
 **`?action=melding`**: the message a `do_*.php` script left in the session, returned

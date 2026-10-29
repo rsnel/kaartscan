@@ -306,8 +306,8 @@ class ScreenshotTest {
 
     @Test
     fun systeemlog() = shot("8-systeemlog") {
-        fun ev(soort: LogSoort, t: String, door: String, barcode: String, gast: String, intro: Boolean = false) =
-            LogEvent(soort, "2021-04-16 $t", door, barcode, gast, intro)
+        fun ev(soort: LogSoort, t: String, door: String, barcode: String, gast: String, intro: Boolean = false, bron: String = "scan") =
+            LogEvent(soort, "2021-04-16 $t", door, barcode, gast, intro, bron)
         MainScaffold(Tab.LOG, me, onBack = {}, onRefresh = {}, statusDot = { GreenDot() }) {
             LogContent(
                 state = ScreenState(
@@ -319,7 +319,7 @@ class ScreenshotTest {
                         ev(LogSoort.BINNEN, "21:02:11", "a.faber", "209331", "Daan Visser (5H1)"),
                         ev(LogSoort.VERKOOP, "19:42:10", "j.devries", "213874", "Sanne Bakker (6V2)", true),
                         ev(LogSoort.VERKOOP, "19:41:55", "j.devries", "209331", "Daan Visser (5H1)"),
-                        ev(LogSoort.VERKOOP, "19:40:02", "j.devries", "211408", "Lotte van Dijk (6V1)"),
+                        ev(LogSoort.VERKOOP, "19:40:02", "j.devries", "211408", "Lotte van Dijk (6V1)", bron = "wiscollect"),
                         ev(LogSoort.VERKOOP_VERWIJDERD, "19:31:00", "j.devries", "208120", "Milan de Boer (5H2)"),
                         ev(LogSoort.VERKOOP, "19:30:12", "j.devries", "208120", "Milan de Boer (5H2)"),
                     ),

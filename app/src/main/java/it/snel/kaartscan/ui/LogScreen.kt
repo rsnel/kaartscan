@@ -151,8 +151,11 @@ private fun LogRow(e: LogEvent) {
                 (e.gast ?: "onbekend") + if (e.introducee) "  + introducee" else "",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            // the source belongs to the sale: scan or wiscollect
+            val bron = e.bron?.takeIf { e.soort == LogSoort.VERKOOP || e.soort == LogSoort.VERKOOP_VERWIJDERD }
             Text(
-                "${e.barcode} · door ${e.door} · ${e.tijdstip.substringBefore(' ')}",
+                listOfNotNull(e.barcode, "door ${e.door}", bron?.let { "bron: $it" }, e.tijdstip.substringBefore(' '))
+                    .joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

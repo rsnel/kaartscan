@@ -59,6 +59,8 @@ data class LogEvent(
     /** "Sanne Bakker (6V2)", null for an unknown barcode */
     val gast: String?,
     val introducee: Boolean,
+    /** how the ticket was sold: "scan", "wiscollect", or null */
+    val bron: String? = null,
 )
 
 /** JSON from api.php; field names as in api.php. */
@@ -130,6 +132,7 @@ object Api {
                 barcode = str(e, "barcode") ?: "",
                 gast = gast(e),
                 introducee = bool(e, "introducee"),
+                bron = str(e, "bron")?.takeIf { it.isNotBlank() },
             )
         }
     }

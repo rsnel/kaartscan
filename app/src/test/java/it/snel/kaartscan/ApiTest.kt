@@ -126,12 +126,12 @@ class ApiTest {
               {"soort": "verkoop", "tijdstip": "2026-10-31 19:20:00",
                "door": {"username": "r.snel", "orig_username": "s.pieneman"},
                "kaartverkoop_id": 42, "kaartcontrole_id": null, "barcode": "0888049978040401221026",
-               "gast": null, "introducee": true}
+               "gast": null, "introducee": true, "bron": "wiscollect"}
             ]}
         """))
         assertEquals(2, log.size) // unknown kinds are skipped
         assertEquals(LogEvent(LogSoort.UITGECHECKT, "2026-10-31 21:01:00", "r.snel", "209331", "Daan Visser (5H1)", false), log[0])
-        assertEquals(LogEvent(LogSoort.VERKOOP, "2026-10-31 19:20:00", "r.snel/s.pieneman", "0888049978040401221026", null, true), log[1])
+        assertEquals(LogEvent(LogSoort.VERKOOP, "2026-10-31 19:20:00", "r.snel/s.pieneman", "0888049978040401221026", null, true, "wiscollect"), log[1])
     }
 
     @Test
