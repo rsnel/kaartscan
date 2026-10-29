@@ -21,7 +21,7 @@ enum class ScanSensitivity(
     ),
     NORMAAL(
         2, false, "Normaal",
-        "De camera moet de barcode twee keer achter elkaar hetzelfde lezen. Aanbevolen.",
+        "De camera moet de barcode twee keer achter elkaar hetzelfde lezen. Weinig fouten en nog steeds snel.",
     ),
     STRENG(
         3, true, "Streng",
