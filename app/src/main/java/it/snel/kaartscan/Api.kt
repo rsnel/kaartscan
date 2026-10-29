@@ -93,7 +93,10 @@ object Api {
     fun controles(o: JSONObject, baseUrl: String): List<Entry> =
         entries(o.getJSONArray("controles")) { c, deleted ->
             val id = c.getInt("kaartcontrole_id")
-            entry(c, id, if (deleted) null else "${baseUrl}do_delete_kaartcontrole.php?kaartcontrole_id=$id")
+            // deleting a check-in is checking out: same button as in Overzicht
+            entry(c, id, null).copy(
+                exitLink = if (deleted) null else "${baseUrl}do_delete_kaartcontrole.php?kaartcontrole_id=$id",
+            )
         }
 
     /** api.php?action=melding: the notice/err a do_*.php script left in the session */

@@ -81,7 +81,7 @@ class ScreenshotTest {
     private val controleRows = listOf(
         entry(12, "2021-04-16 21:15:03", "213874", "Sanne Bakker (6V2)", true, bron = null),
         entry(11, "2021-04-16 21:14:40", "211408", "Lotte van Dijk (6V1)", false, bron = null),
-    )
+    ).map { it.copy(deleteLink = null, exitLink = "https://example.org/kaartscan/do_delete_kaartcontrole.php?kaartcontrole_id=${it.id}") }
 
     private val aantallen = Aantallen(verkocht = Counts("143", "128", "15"), binnen = Counts("87", "79", "8"))
 

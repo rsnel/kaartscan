@@ -27,7 +27,7 @@ User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/
   Overzicht (check out first, then delete).
 * **Kaartcontrole**: scan at the door. Shows *toegelaten MET/ZONDER introducee*,
   *al binnen* or *geen kaartje gekocht*, the counts as inside / sold per category,
-  and the check-ins (with delete).
+  and the check-ins, each with the check-out button (deletes the kaartcontrole).
 * **Overzicht**: all sales with inside / sold counts; order by sale time, arrival
   time or name; who is inside, with arrival time; show deleted; local search on name
   or number. Someone who is inside has a check-out button (deletes the

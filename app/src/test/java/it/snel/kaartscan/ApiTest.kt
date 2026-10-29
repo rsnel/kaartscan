@@ -99,7 +99,8 @@ class ApiTest {
         """), base)
         assertEquals(12, list[0].id)
         assertEquals("r.snel", list[0].door)
-        assertEquals("${base}do_delete_kaartcontrole.php?kaartcontrole_id=12", list[0].deleteLink)
+        assertEquals("${base}do_delete_kaartcontrole.php?kaartcontrole_id=12", list[0].exitLink)
+        assertNull(list[0].deleteLink)
     }
 
     @Test
