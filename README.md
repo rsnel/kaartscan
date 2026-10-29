@@ -235,7 +235,9 @@ Robolectric) for the website.
 
 Open in Android Studio, or `./gradlew assembleDebug`. GitHub Actions builds on every
 push; the APKs are artifacts on the workflow run (*kaartscan-debug-apk*,
-*kaartscan-release-apk*). The version code is the workflow run number, so each CI
+*kaartscan-release-apk*). The version name comes from `git describe`: `1.9` for a
+build of tag `v1.9`, `1.9-3-gabc1234` for later commits (settings shows it with the
+build number). The version code is the workflow run number, so each CI
 build installs over the previous one.
 
 The website is `docs/`. On every push to `main` CI renders the screenshots into

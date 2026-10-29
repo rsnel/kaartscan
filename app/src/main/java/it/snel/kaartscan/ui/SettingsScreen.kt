@@ -1,5 +1,7 @@
 package it.snel.kaartscan.ui
 
+import android.content.pm.PackageInfo
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,9 +58,12 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var serverError by remember { mutableStateOf<String?>(null) }
     var saved by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    // "1.9 (build 42)": the git tag, and the CI run that built it
     val version = remember {
         try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            val build = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else versionCodeLegacy(info).toLong()
+            "${info.versionName} (build $build)"
         } catch (e: Exception) {
             null
         }
@@ -208,3 +213,6 @@ internal fun SettingsContent(
         }
     }
 }
+
+@Suppress("DEPRECATION")
+private fun versionCodeLegacy(info: PackageInfo): Int = info.versionCode

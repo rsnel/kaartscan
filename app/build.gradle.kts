@@ -23,6 +23,24 @@ val releaseStoreFile = signingValue("KAARTSCAN_KEYSTORE_FILE", "storeFile")
 // CI builds get increasing version codes, so a newer APK installs over an older one
 val buildNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
 
+// The version name comes from the git tags: "1.9" for a build of tag v1.9,
+// "1.9-3-gabc1234" for the third commit after it. CI sets it in the
+// environment; locally git describe is asked directly.
+fun gitVersionName(): String? = try {
+    val p = ProcessBuilder("git", "describe", "--tags", "--match", "v*", "--always", "--dirty")
+        .directory(rootDir)
+        .redirectErrorStream(true)
+        .start()
+    val out = p.inputStream.bufferedReader().readText().trim()
+    if (p.waitFor() == 0 && out.isNotEmpty()) out.removePrefix("v") else null
+} catch (e: Exception) {
+    null
+}
+
+val appVersionName = System.getenv("KAARTSCAN_VERSION_NAME")?.takeIf { it.isNotBlank() }
+    ?: gitVersionName()
+    ?: "dev"
+
 android {
     namespace = "it.snel.kaartscan"
     compileSdk = 35
@@ -32,7 +50,7 @@ android {
         minSdk = 24
         targetSdk = 35
         versionCode = buildNumber
-        versionName = "1.0.$buildNumber"
+        versionName = appVersionName
     }
 
     signingConfigs {

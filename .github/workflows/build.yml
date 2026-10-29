@@ -15,6 +15,15 @@ jobs:
       docs: ${{ steps.docs.outputs.changed }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # tags and history, for git describe
+
+      # version name from the tags: 1.9 on tag v1.9, 1.9-3-gabc1234 after it
+      - name: Version name
+        run: |
+          v=$(git describe --tags --match 'v*' --always)
+          echo "KAARTSCAN_VERSION_NAME=${v#v}" >> "$GITHUB_ENV"
+          echo "::notice title=Version::${v#v} (build $GITHUB_RUN_NUMBER)"
 
       - uses: actions/setup-java@v5
         with:
@@ -116,7 +125,7 @@ jobs:
             changed=true
           elif [ -z "$BEFORE" ] || [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
             changed=true
-          elif git fetch --quiet --depth=1 origin "$BEFORE" && [ -n "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- docs)" ]; then
+          elif git cat-file -e "$BEFORE^{commit}" 2>/dev/null && [ -n "$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- docs)" ]; then
             changed=true
           fi
           echo "changed=$changed" >> "$GITHUB_OUTPUT"

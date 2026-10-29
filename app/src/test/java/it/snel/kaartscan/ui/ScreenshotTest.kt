@@ -288,7 +288,7 @@ class ScreenshotTest {
             onDefaultServer = {},
             serverError = null,
             serverSaved = false,
-            version = "1.0.42",
+            version = "1.9 (build 42)",
             onBack = {},
         )
     }
