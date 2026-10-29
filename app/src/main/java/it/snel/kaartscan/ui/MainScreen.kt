@@ -299,6 +299,7 @@ fun ScanScreen(vm: MainViewModel, tab: Tab) {
         cameraOn = cameraOn,
         onToggleCamera = { cameraOn = !cameraOn },
         onDelete = { vm.delete(tab, it) },
+        onRefresh = { vm.load(tab) },
     ) {
         if (hasPermission) {
             CameraScanner(
@@ -333,6 +334,7 @@ internal fun ScanContent(
     cameraOn: Boolean,
     onToggleCamera: () -> Unit,
     onDelete: (String) -> Unit,
+    onRefresh: (() -> Unit)? = null,
     camera: @Composable () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -407,6 +409,7 @@ internal fun ScanContent(
             modifier = Modifier.weight(1f),
             // checking out belongs in Overzicht, not at the ticket sale
             checkOutHere = tab != Tab.VERKOOP,
+            onRefresh = onRefresh,
         )
     }
 }
@@ -427,6 +430,7 @@ fun OverzichtScreen(vm: MainViewModel) {
         query = query,
         onQueryChange = { query = it },
         onDelete = { vm.delete(Tab.OVERZICHT, it) },
+        onRefresh = { vm.load(Tab.OVERZICHT) },
     )
 }
 
@@ -441,6 +445,7 @@ internal fun OverzichtContent(
     query: String,
     onQueryChange: (String) -> Unit,
     onDelete: (String) -> Unit,
+    onRefresh: (() -> Unit)? = null,
 ) {
     val rows = state.entries
     val filtered = remember(rows, query) {
@@ -502,6 +507,7 @@ internal fun OverzichtContent(
             },
             onDelete = onDelete,
             modifier = Modifier.weight(1f),
+            onRefresh = onRefresh,
         )
     }
 }

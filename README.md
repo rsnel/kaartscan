@@ -56,6 +56,8 @@ User documentation (Dutch): [rsnel.github.io/kaartscan](https://rsnel.github.io/
   hour per IP address. Versions compare numerically (`1.10` > `1.9`); a build after a
   tag (`1.9-3-gabc1234`) counts as that tag, and a local `dev` build is only offered an
   update when checking by hand.
+* Every list (Kaartverkoop, Kaartcontrole, Overzicht, Systeemlog) reloads when
+  pulled down, like the refresh button in the top bar.
 * Portrait only; the screen stays on while the camera is open.
 
 ### Scanning

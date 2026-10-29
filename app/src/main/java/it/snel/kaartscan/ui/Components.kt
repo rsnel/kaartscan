@@ -10,6 +10,12 @@ import android.os.VibratorManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -163,6 +169,49 @@ private fun Stat(label: String, value: String) {
     }
 }
 
+/**
+ * A list area that reloads when pulled down. A pull shows the round
+ * spinner; a reload started otherwise (opening, filters, the refresh
+ * button) the thin bar at the top, as before.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun Refreshable(
+    loading: Boolean,
+    onRefresh: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    if (onRefresh == null) {
+        Box(modifier) {
+            content()
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+        }
+        return
+    }
+    var pulled by remember { mutableStateOf(false) }
+    val currentLoading by rememberUpdatedState(loading)
+    // the pull is over when the reload ends, or when none started (no session)
+    LaunchedEffect(loading) { if (!loading) pulled = false }
+    LaunchedEffect(pulled) {
+        if (pulled) {
+            delay(500)
+            if (!currentLoading) pulled = false
+        }
+    }
+    PullToRefreshBox(
+        isRefreshing = pulled && loading,
+        onRefresh = {
+            pulled = true
+            onRefresh()
+        },
+        modifier = modifier,
+    ) {
+        content()
+        if (loading && !pulled) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+    }
+}
+
 private enum class RowAction { DELETE, CHECK_OUT, BLOCKED }
 
 /**
@@ -179,9 +228,11 @@ fun RowList(
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
     checkOutHere: Boolean = true,
+    /** pull down to reload; null: no pull-to-refresh */
+    onRefresh: (() -> Unit)? = null,
 ) {
     var pending by remember { mutableStateOf<Pair<Entry, RowAction>?>(null) }
-    Box(modifier) {
+    Refreshable(loading, onRefresh, modifier) {
         LazyColumn(
             contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -200,7 +251,6 @@ fun RowList(
                 )
             }
         }
-        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
     }
     pending?.let { (row, action) ->
         val who = "${row.gast ?: "onbekend"} (${row.barcode})"

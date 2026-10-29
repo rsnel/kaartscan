@@ -66,11 +66,17 @@ fun LogScreen(vm: MainViewModel) {
         state = vm.state(Tab.LOG),
         zoek = vm.logZoek,
         onZoekChange = { vm.updateLogZoek(it) },
+        onRefresh = { vm.load(Tab.LOG) },
     )
 }
 
 @Composable
-internal fun LogContent(state: ScreenState, zoek: String, onZoekChange: (String) -> Unit) {
+internal fun LogContent(
+    state: ScreenState,
+    zoek: String,
+    onZoekChange: (String) -> Unit,
+    onRefresh: (() -> Unit)? = null,
+) {
     Column(Modifier.fillMaxSize()) {
         Column(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -96,7 +102,7 @@ internal fun LogContent(state: ScreenState, zoek: String, onZoekChange: (String)
             }
         }
         HorizontalDivider()
-        Box(Modifier.weight(1f)) {
+        Refreshable(state.loading, onRefresh, Modifier.weight(1f)) {
             LazyColumn(
                 contentPadding = PaddingValues(vertical = 4.dp),
                 modifier = Modifier.fillMaxSize(),
@@ -115,7 +121,6 @@ internal fun LogContent(state: ScreenState, zoek: String, onZoekChange: (String)
                     HorizontalDivider(Modifier.padding(start = 60.dp))
                 }
             }
-            if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
         }
     }
 }
