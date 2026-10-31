@@ -66,8 +66,11 @@ android {
 
     buildTypes {
         debug {
-            // same key as release when available, so debug and release
-            // builds install over each other
+            // a separate app next to the release ("Kaartscan debug"), which
+            // updates itself to the newest debug build
+            applicationIdSuffix = ".debug"
+            // the release key when available, so every CI debug build
+            // installs over the previous one
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }
         release {
@@ -86,6 +89,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         unitTests {

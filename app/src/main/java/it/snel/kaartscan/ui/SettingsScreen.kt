@@ -106,12 +106,13 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             is UpdateState.Checking -> "Bezig met controleren…"
             is UpdateState.UpToDate -> "Je hebt de nieuwste versie (${u.current})."
             is UpdateState.Failed -> if (u.release == null) "Controleren mislukt: ${u.message}" else null
-            is UpdateState.Available -> "Versie ${u.release.version} is beschikbaar."
-            is UpdateState.Downloading -> "Versie ${u.release.version} wordt gedownload…"
-            is UpdateState.Ready -> "Versie ${u.release.version} is klaar om te installeren."
+            is UpdateState.Available -> "Versie ${u.release.label} is beschikbaar."
+            is UpdateState.Downloading -> "Versie ${u.release.label} wordt gedownload…"
+            is UpdateState.Ready -> "Versie ${u.release.label} is klaar om te installeren."
             UpdateState.Idle -> null
         },
         checkingUpdates = vm.update is UpdateState.Checking,
+        debugChannel = vm.debugChannel,
         onBack = onBack,
     )
 }
@@ -135,6 +136,7 @@ internal fun SettingsContent(
     onCheckUpdates: () -> Unit,
     updateStatus: String?,
     checkingUpdates: Boolean,
+    debugChannel: Boolean = false,
     onBack: () -> Unit,
 ) {
     Scaffold(
@@ -240,7 +242,8 @@ internal fun SettingsContent(
                 Column(Modifier.weight(1f)) {
                     Text("Bij opstarten op updates controleren", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Bij een nieuwe versie vraagt de app of je die wilt installeren.",
+                        if (debugChannel) "Dit is de debugversie: die zoekt de nieuwste debugbuild (elke wijziging op main)."
+                        else "Bij een nieuwe versie vraagt de app of je die wilt installeren.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

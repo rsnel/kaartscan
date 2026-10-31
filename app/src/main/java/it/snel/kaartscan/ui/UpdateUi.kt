@@ -56,17 +56,17 @@ fun UpdateDialog(vm: MainViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (state) {
                     is UpdateState.Available -> Text(
-                        if (state.knownOlder) "Versie ${state.release.version} is beschikbaar. Je hebt nu ${state.current}."
-                        else "Versie ${state.release.version} is gepubliceerd. Je hebt een ontwikkelversie (${state.current})."
+                        if (state.knownOlder) "Versie ${state.release.label} is beschikbaar. Je hebt nu ${state.current}."
+                        else "Versie ${state.release.label} is gepubliceerd. Je hebt een ontwikkelversie (${state.current})."
                     )
                     is UpdateState.Downloading -> {
-                        Text("Versie ${state.release.version} downloaden…")
+                        Text("Versie ${state.release.label} downloaden…")
                         val p = state.progress
                         if (p != null) LinearProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth())
                         else LinearProgressIndicator(Modifier.fillMaxWidth())
                     }
                     is UpdateState.Ready -> Text(
-                        "Versie ${state.release.version} is gedownload. Android vraagt nu of je de update wilt installeren."
+                        "Versie ${state.release.label} is gedownload. Android vraagt nu of je de update wilt installeren."
                     )
                     is UpdateState.Failed -> Text(state.message)
                     else -> Text("Bezig…")

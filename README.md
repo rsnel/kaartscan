@@ -248,9 +248,23 @@ example data (Roborazzi on Robolectric) for the website.
 
 ## Building
 
-Open in Android Studio, or `./gradlew assembleDebug`. GitHub Actions builds on every
-push; the APKs are artifacts on the workflow run (*kaartscan-debug-apk*,
-*kaartscan-release-apk*). The version name comes from `git describe`: `1.9` for a
+Open in Android Studio, or `./gradlew assembleDebug`.
+
+GitHub Actions builds on every push, one variant per trigger:
+
+| Trigger | Builds | Published |
+|---|---|---|
+| tag `v*` | release (`it.snel.kaartscan`, "Kaartscan") | GitHub release `vX.Y` with `kaartscan-vX.Y.apk` |
+| push to `main` | debug (`it.snel.kaartscan.debug`, "Kaartscan debug") | pre-release `debug`, replaced every time: `kaartscan-debug.apk` and `kaartscan-debug.json` |
+| other branches, pull requests | debug | only as workflow artifact |
+
+The debug app is a separate app next to the release, with its own session and
+settings. It updates itself to the newest debug build: it reads
+`releases/download/debug/kaartscan-debug.json` (`{"version", "build", "commit"}`) and
+compares `build` (the CI run number) with its own version code. The release app only
+follows releases; a pre-release is never `releases/latest`. A run that finishes after a
+newer one does not overwrite the published debug build. The APKs are also artifacts
+on the workflow run (*kaartscan-debug-apk* or *kaartscan-release-apk*). The version name comes from `git describe`: `1.9` for a
 build of tag `v1.9`, `1.9-3-gabc1234` for later commits (settings shows it with the
 build number). The version code is the workflow run number, so each CI
 build installs over the previous one.
@@ -262,7 +276,8 @@ The website is `docs/`. On every push to `main` CI renders the screenshots into
 ### Release signing
 
 Release builds, and debug builds when the key is available, are signed with the key
-in `kaartscan-release.jks` (not in git).
+in `kaartscan-release.jks` (not in git); every CI debug build therefore installs over
+the previous one.
 
 * **CI** takes it from four repository secrets: `KEYSTORE_BASE64` (the keystore,
   base64 encoded), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. Without them

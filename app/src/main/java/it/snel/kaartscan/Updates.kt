@@ -1,17 +1,27 @@
 package it.snel.kaartscan
 
 import android.content.Context
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.os.Build
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONException
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.net.URLDecoder
 import java.util.concurrent.TimeUnit
 
-/** A published GitHub release: tag v1.10, version 1.10, and its APK. */
-data class Release(val tag: String, val version: String, val apkUrl: String)
+/**
+ * A published build: a GitHub release (tag v1.10, version 1.10) or, for
+ * the debug app, the latest debug build ([build] is its CI run number).
+ */
+data class Release(val tag: String, val version: String, val apkUrl: String, val build: Long? = null) {
+    /** shown to the user */
+    val label: String get() = if (build != null) "$version (build $build)" else version
+}
 
 /** Version names as the build makes them with git describe: "1.10", "1.9-3-gabc1234", "1.9-dirty". */
 object Versions {
@@ -38,12 +48,16 @@ object Versions {
 }
 
 /**
- * Finds and downloads new versions from the GitHub releases, which CI
- * creates for every v* tag with kaartscan-<tag>.apk attached.
+ * Finds and downloads new versions on GitHub. The release app follows the
+ * releases, which CI creates for every v* tag with kaartscan-<tag>.apk
+ * attached; the debug app follows the pre-release 'debug', which CI
+ * replaces on every push to main with kaartscan-debug.apk and
+ * kaartscan-debug.json ({"version", "build", "commit"}).
  *
  * The latest release is found through the redirect of /releases/latest to
  * /releases/tag/<tag>, not the GitHub API: that has a limit of 60 requests
- * per hour per IP address, which phones on the school network share.
+ * per hour per IP address, which phones on the school network share. A
+ * pre-release is never 'latest', so release apps never see debug builds.
  *
  * Blocking; call from a background thread.
  */
@@ -61,13 +75,54 @@ class Updater(private val context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_CHECK, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_CHECK, value).apply()
 
-    val currentVersion: String = try {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "dev"
+    private val info = try {
+        context.packageManager.getPackageInfo(context.packageName, 0)
     } catch (e: PackageManager.NameNotFoundException) {
-        "dev"
+        null
     }
 
-    fun latest(): Release {
+    val currentVersion: String = info?.versionName ?: "dev"
+
+    /** the CI run number that built this app */
+    val currentBuild: Long = info?.let {
+        if (Build.VERSION.SDK_INT >= 28) it.longVersionCode else legacyVersionCode(it).toLong()
+    } ?: 0
+
+    /** "1.10" for the release app, "1.10-5-gabc1234 (build 57)" for the debug app */
+    val currentLabel: String = if (BuildConfig.DEBUG) "$currentVersion (build $currentBuild)" else currentVersion
+
+    /** true when [release] is newer than this app; null when that cannot be told (a local dev build) */
+    fun isNewer(release: Release): Boolean? =
+        if (release.build != null) release.build > currentBuild
+        else Versions.isNewer(release.version, currentVersion)
+
+    fun latest(): Release = if (BuildConfig.DEBUG) latestDebug() else latestRelease()
+
+    private fun latestDebug(): Release {
+        val request = Request.Builder()
+            .url("$REPO/releases/download/$DEBUG_TAG/kaartscan-debug.json")
+            .header("Cache-Control", "no-cache")
+            .get()
+            .build()
+        val body = http.newCall(request).execute().use { r ->
+            if (r.code == 404) throw IOException("Er is nog geen debugbuild gepubliceerd")
+            if (!r.isSuccessful) throw IOException("GitHub antwoordde onverwacht (HTTP ${r.code})")
+            r.body?.string() ?: ""
+        }
+        return try {
+            val o = JSONObject(body)
+            Release(
+                tag = DEBUG_TAG,
+                version = o.getString("version"),
+                apkUrl = "$REPO/releases/download/$DEBUG_TAG/kaartscan-debug.apk",
+                build = o.getLong("build"),
+            )
+        } catch (e: JSONException) {
+            throw IOException("Ongeldige gegevens bij de debugbuild")
+        }
+    }
+
+    private fun latestRelease(): Release {
         val noRedirects = http.newBuilder().followRedirects(false).followSslRedirects(false).build()
         val (code, location) = noRedirects.newCall(Request.Builder().url("$REPO/releases/latest").get().build())
             .execute().use { it.code to it.header("Location") }
@@ -137,6 +192,10 @@ class Updater(private val context: Context) {
 
     companion object {
         const val REPO = "https://github.com/rsnel/kaartscan"
+        const val DEBUG_TAG = "debug"
         private const val KEY_AUTO_CHECK = "update_auto_check"
     }
 }
+
+@Suppress("DEPRECATION")
+private fun legacyVersionCode(info: PackageInfo): Int = info.versionCode

@@ -96,7 +96,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ---- updates ---------------------------------------------------------------
 
     private val updater = Updater(app)
-    val currentVersion: String get() = updater.currentVersion
+    val currentVersion: String get() = updater.currentLabel
+    /** the debug app follows the debug builds, the release app the releases */
+    val debugChannel: Boolean get() = BuildConfig.DEBUG
     var update by mutableStateOf<UpdateState>(UpdateState.Idle)
         private set
     /** the update dialog, over whatever screen is open */
@@ -121,8 +123,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         updateJob = viewModelScope.launch {
             try {
                 val release = io { updater.latest() }
-                val current = updater.currentVersion
-                val newer = Versions.isNewer(release.version, current)
+                val current = updater.currentLabel
+                val newer = updater.isNewer(release)
                 if (newer == true || (newer == null && !auto)) {
                     update = UpdateState.Available(release, current, knownOlder = newer == true)
                     updateDialog = true

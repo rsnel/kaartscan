@@ -8,9 +8,14 @@ on:
 permissions:
   contents: write # releases on v* tags, screenshot commits
 
+# A v* tag builds the release (and publishes it as a GitHub release);
+# everything else builds the debug app, and a push to main publishes that
+# as the rolling pre-release 'debug', which the debug app updates from.
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
     outputs:
       docs: ${{ steps.docs.outputs.changed }}
     steps:
@@ -53,8 +58,14 @@ jobs:
             echo "KAARTSCAN_KEY_PASSWORD=$KEY_PASSWORD"
           } >> "$GITHUB_ENV"
 
-      - name: Unit tests, debug and release APK
-        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug assembleRelease
+      # the unit tests (and screenshot tests) run against the debug variant
+      - name: Unit tests and APK
+        run: |
+          if [ "$IS_RELEASE" = true ]; then
+            ./gradlew --no-daemon testDebugUnitTest assembleRelease
+          else
+            ./gradlew --no-daemon testDebugUnitTest assembleDebug
+          fi
 
       - name: Show signing certificates
         run: |
@@ -69,11 +80,13 @@ jobs:
           done
 
       - uses: actions/upload-artifact@v4
+        if: env.IS_RELEASE != 'true'
         with:
           name: kaartscan-debug-apk
           path: app/build/outputs/apk/debug/*.apk
 
       - uses: actions/upload-artifact@v4
+        if: env.IS_RELEASE == 'true'
         with:
           name: kaartscan-release-apk
           path: app/build/outputs/apk/release/*.apk
@@ -90,6 +103,38 @@ jobs:
           fi
           cp "$apk" "kaartscan-$GITHUB_REF_NAME.apk"
           gh release create "$GITHUB_REF_NAME" "kaartscan-$GITHUB_REF_NAME.apk" --generate-notes
+
+      # The pre-release 'debug' always holds the newest debug build of main:
+      # kaartscan-debug.apk and kaartscan-debug.json, which the debug app
+      # reads. A pre-release is never 'latest', so release apps ignore it.
+      - name: Publish debug build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # a run that finishes after a newer one must not overwrite it
+          if gh release download debug -p kaartscan-debug.json -O published.json 2>/dev/null; then
+            published=$(python3 -c "import json; print(json.load(open('published.json'))['build'])")
+            if [ "$published" -ge "$GITHUB_RUN_NUMBER" ]; then
+              echo "Build $published is already published, skipping build $GITHUB_RUN_NUMBER"
+              exit 0
+            fi
+          fi
+          cp app/build/outputs/apk/debug/app-debug.apk kaartscan-debug.apk
+          printf '{"version": "%s", "build": %s, "commit": "%s"}\n' \
+            "$KAARTSCAN_VERSION_NAME" "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > kaartscan-debug.json
+          # pushes with the workflow token start no new run
+          git tag -f debug "$GITHUB_SHA"
+          git push -f origin refs/tags/debug
+          notes="Nieuwste debugbuild van main: $KAARTSCAN_VERSION_NAME (build $GITHUB_RUN_NUMBER). Installeert als aparte app 'Kaartscan debug'."
+          if ! gh release view debug >/dev/null 2>&1; then
+            gh release create debug --prerelease --latest=false --title "Debugbuild" --notes "$notes" --verify-tag
+          fi
+          # the APK first: the app only looks for it after reading the JSON
+          gh release upload debug kaartscan-debug.apk --clobber
+          gh release upload debug kaartscan-debug.json --clobber
+          gh release edit debug --prerelease --latest=false --notes "$notes"
+          echo "::notice title=Debug build::$KAARTSCAN_VERSION_NAME (build $GITHUB_RUN_NUMBER) published"
 
       # Renders the screens (app/src/test/.../ScreenshotTest.kt) for the
       # website in docs/ and commits them when they changed. Pushes made
